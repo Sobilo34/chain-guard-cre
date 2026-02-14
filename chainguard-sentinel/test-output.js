@@ -3522,18 +3522,18 @@ function getAmbiguousTypes(sourceParameters, targetParameters, args) {
     const targetParameter = targetParameters[parameterIndex];
     if (sourceParameter.type === "tuple" && targetParameter.type === "tuple" && "components" in sourceParameter && "components" in targetParameter)
       return getAmbiguousTypes(sourceParameter.components, targetParameter.components, args[parameterIndex]);
-    const types3 = [sourceParameter.type, targetParameter.type];
+    const types4 = [sourceParameter.type, targetParameter.type];
     const ambiguous = (() => {
-      if (types3.includes("address") && types3.includes("bytes20"))
+      if (types4.includes("address") && types4.includes("bytes20"))
         return true;
-      if (types3.includes("address") && types3.includes("string"))
+      if (types4.includes("address") && types4.includes("string"))
         return isAddress(args[parameterIndex], { strict: false });
-      if (types3.includes("address") && types3.includes("bytes"))
+      if (types4.includes("address") && types4.includes("bytes"))
         return isAddress(args[parameterIndex], { strict: false });
       return false;
     })();
     if (ambiguous)
-      return types3;
+      return types4;
   }
   return;
 }
@@ -7067,6 +7067,23 @@ function fileDesc(b64, imports) {
   return reg.getFile(root.name);
 }
 var file_google_protobuf_timestamp = /* @__PURE__ */ fileDesc("Ch9nb29nbGUvcHJvdG9idWYvdGltZXN0YW1wLnByb3RvEg9nb29nbGUucHJvdG9idWYiKwoJVGltZXN0YW1wEg8KB3NlY29uZHMYASABKAMSDQoFbmFub3MYAiABKAVChQEKE2NvbS5nb29nbGUucHJvdG9idWZCDlRpbWVzdGFtcFByb3RvUAFaMmdvb2dsZS5nb2xhbmcub3JnL3Byb3RvYnVmL3R5cGVzL2tub3duL3RpbWVzdGFtcHBi+AEBogIDR1BCqgIeR29vZ2xlLlByb3RvYnVmLldlbGxLbm93blR5cGVzYgZwcm90bzM");
+var TimestampSchema = /* @__PURE__ */ messageDesc(file_google_protobuf_timestamp, 0);
+function timestampFromDate(date) {
+  return timestampFromMs(date.getTime());
+}
+function timestampDate(timestamp) {
+  return new Date(timestampMs(timestamp));
+}
+function timestampFromMs(timestampMs) {
+  const seconds = Math.floor(timestampMs / 1000);
+  return create(TimestampSchema, {
+    seconds: protoInt64.parse(seconds),
+    nanos: (timestampMs - seconds * 1000) * 1e6
+  });
+}
+function timestampMs(timestamp) {
+  return Number(timestamp.seconds) * 1000 + Math.round(timestamp.nanos / 1e6);
+}
 var file_google_protobuf_any = /* @__PURE__ */ fileDesc("Chlnb29nbGUvcHJvdG9idWYvYW55LnByb3RvEg9nb29nbGUucHJvdG9idWYiJgoDQW55EhAKCHR5cGVfdXJsGAEgASgJEg0KBXZhbHVlGAIgASgMQnYKE2NvbS5nb29nbGUucHJvdG9idWZCCEFueVByb3RvUAFaLGdvb2dsZS5nb2xhbmcub3JnL3Byb3RvYnVmL3R5cGVzL2tub3duL2FueXBiogIDR1BCqgIeR29vZ2xlLlByb3RvYnVmLldlbGxLbm93blR5cGVzYgZwcm90bzM");
 var AnySchema = /* @__PURE__ */ messageDesc(file_google_protobuf_any, 0);
 var LEGACY_REQUIRED2 = 3;
@@ -7249,8 +7266,34 @@ function anyPack(schema, message, into) {
   into.typeUrl = typeNameToUrl(message.$typeName);
   return ret ? into : undefined;
 }
+function anyIs(any, descOrTypeName) {
+  if (any.typeUrl === "") {
+    return false;
+  }
+  const want = typeof descOrTypeName == "string" ? descOrTypeName : descOrTypeName.typeName;
+  const got = typeUrlToName(any.typeUrl);
+  return want === got;
+}
+function anyUnpack(any, registryOrMessageDesc) {
+  if (any.typeUrl === "") {
+    return;
+  }
+  const desc = registryOrMessageDesc.kind == "message" ? registryOrMessageDesc : registryOrMessageDesc.getMessage(typeUrlToName(any.typeUrl));
+  if (!desc || !anyIs(any, desc)) {
+    return;
+  }
+  return fromBinary(desc, any.value);
+}
 function typeNameToUrl(name) {
   return `type.googleapis.com/${name}`;
+}
+function typeUrlToName(url) {
+  const slash = url.lastIndexOf("/");
+  const name = slash >= 0 ? url.substring(slash + 1) : url;
+  if (!name.length) {
+    throw new Error(`invalid type url: ${url}`);
+  }
+  return name;
 }
 var file_google_protobuf_empty = /* @__PURE__ */ fileDesc("Chtnb29nbGUvcHJvdG9idWYvZW1wdHkucHJvdG8SD2dvb2dsZS5wcm90b2J1ZiIHCgVFbXB0eUJ9ChNjb20uZ29vZ2xlLnByb3RvYnVmQgpFbXB0eVByb3RvUAFaLmdvb2dsZS5nb2xhbmcub3JnL3Byb3RvYnVmL3R5cGVzL2tub3duL2VtcHR5cGL4AQGiAgNHUEKqAh5Hb29nbGUuUHJvdG9idWYuV2VsbEtub3duVHlwZXNiBnByb3RvMw");
 var EmptySchema = /* @__PURE__ */ messageDesc(file_google_protobuf_empty, 0);
@@ -7773,8 +7816,26 @@ function listValueFromJson(listValue, json) {
   }
 }
 var file_values_v1_values = /* @__PURE__ */ fileDesc("ChZ2YWx1ZXMvdjEvdmFsdWVzLnByb3RvEgl2YWx1ZXMudjEigQMKBVZhbHVlEhYKDHN0cmluZ192YWx1ZRgBIAEoCUgAEhQKCmJvb2xfdmFsdWUYAiABKAhIABIVCgtieXRlc192YWx1ZRgDIAEoDEgAEiMKCW1hcF92YWx1ZRgEIAEoCzIOLnZhbHVlcy52MS5NYXBIABIlCgpsaXN0X3ZhbHVlGAUgASgLMg8udmFsdWVzLnYxLkxpc3RIABIrCg1kZWNpbWFsX3ZhbHVlGAYgASgLMhIudmFsdWVzLnYxLkRlY2ltYWxIABIZCgtpbnQ2NF92YWx1ZRgHIAEoA0ICMABIABIpCgxiaWdpbnRfdmFsdWUYCSABKAsyES52YWx1ZXMudjEuQmlnSW50SAASMAoKdGltZV92YWx1ZRgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIABIXCg1mbG9hdDY0X3ZhbHVlGAsgASgBSAASGgoMdWludDY0X3ZhbHVlGAwgASgEQgIwAEgAQgcKBXZhbHVlSgQICBAJIisKBkJpZ0ludBIPCgdhYnNfdmFsGAEgASgMEhAKBHNpZ24YAiABKANCAjAAInIKA01hcBIqCgZmaWVsZHMYASADKAsyGi52YWx1ZXMudjEuTWFwLkZpZWxkc0VudHJ5Gj8KC0ZpZWxkc0VudHJ5EgsKA2tleRgBIAEoCRIfCgV2YWx1ZRgCIAEoCzIQLnZhbHVlcy52MS5WYWx1ZToCOAEiKAoETGlzdBIgCgZmaWVsZHMYAiADKAsyEC52YWx1ZXMudjEuVmFsdWUiQwoHRGVjaW1hbBImCgtjb2VmZmljaWVudBgBIAEoCzIRLnZhbHVlcy52MS5CaWdJbnQSEAoIZXhwb25lbnQYAiABKAVCYQoNY29tLnZhbHVlcy52MUILVmFsdWVzUHJvdG9QAaICA1ZYWKoCCVZhbHVlcy5WMcoCCVZhbHVlc1xWMeICFVZhbHVlc1xWMVxHUEJNZXRhZGF0YeoCClZhbHVlczo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+var ValueSchema2 = /* @__PURE__ */ messageDesc(file_values_v1_values, 0);
+var BigIntSchema = /* @__PURE__ */ messageDesc(file_values_v1_values, 1);
+var MapSchema = /* @__PURE__ */ messageDesc(file_values_v1_values, 2);
+var ListSchema = /* @__PURE__ */ messageDesc(file_values_v1_values, 3);
+var DecimalSchema = /* @__PURE__ */ messageDesc(file_values_v1_values, 4);
 var file_sdk_v1alpha_sdk = /* @__PURE__ */ fileDesc("ChVzZGsvdjFhbHBoYS9zZGsucHJvdG8SC3Nkay52MWFscGhhIrQBChVTaW1wbGVDb25zZW5zdXNJbnB1dHMSIQoFdmFsdWUYASABKAsyEC52YWx1ZXMudjEuVmFsdWVIABIPCgVlcnJvchgCIAEoCUgAEjUKC2Rlc2NyaXB0b3JzGAMgASgLMiAuc2RrLnYxYWxwaGEuQ29uc2Vuc3VzRGVzY3JpcHRvchIhCgdkZWZhdWx0GAQgASgLMhAudmFsdWVzLnYxLlZhbHVlQg0KC29ic2VydmF0aW9uIpABCglGaWVsZHNNYXASMgoGZmllbGRzGAEgAygLMiIuc2RrLnYxYWxwaGEuRmllbGRzTWFwLkZpZWxkc0VudHJ5Gk8KC0ZpZWxkc0VudHJ5EgsKA2tleRgBIAEoCRIvCgV2YWx1ZRgCIAEoCzIgLnNkay52MWFscGhhLkNvbnNlbnN1c0Rlc2NyaXB0b3I6AjgBIoYBChNDb25zZW5zdXNEZXNjcmlwdG9yEjMKC2FnZ3JlZ2F0aW9uGAEgASgOMhwuc2RrLnYxYWxwaGEuQWdncmVnYXRpb25UeXBlSAASLAoKZmllbGRzX21hcBgCIAEoCzIWLnNkay52MWFscGhhLkZpZWxkc01hcEgAQgwKCmRlc2NyaXB0b3IiagoNUmVwb3J0UmVxdWVzdBIXCg9lbmNvZGVkX3BheWxvYWQYASABKAwSFAoMZW5jb2Rlcl9uYW1lGAIgASgJEhQKDHNpZ25pbmdfYWxnbxgDIAEoCRIUCgxoYXNoaW5nX2FsZ28YBCABKAkilwEKDlJlcG9ydFJlc3BvbnNlEhUKDWNvbmZpZ19kaWdlc3QYASABKAwSEgoGc2VxX25yGAIgASgEQgIwABIWCg5yZXBvcnRfY29udGV4dBgDIAEoDBISCgpyYXdfcmVwb3J0GAQgASgMEi4KBHNpZ3MYBSADKAsyIC5zZGsudjFhbHBoYS5BdHRyaWJ1dGVkU2lnbmF0dXJlIjsKE0F0dHJpYnV0ZWRTaWduYXR1cmUSEQoJc2lnbmF0dXJlGAEgASgMEhEKCXNpZ25lcl9pZBgCIAEoDSJrChFDYXBhYmlsaXR5UmVxdWVzdBIKCgJpZBgBIAEoCRIlCgdwYXlsb2FkGAIgASgLMhQuZ29vZ2xlLnByb3RvYnVmLkFueRIOCgZtZXRob2QYAyABKAkSEwoLY2FsbGJhY2tfaWQYBCABKAUiWgoSQ2FwYWJpbGl0eVJlc3BvbnNlEicKB3BheWxvYWQYASABKAsyFC5nb29nbGUucHJvdG9idWYuQW55SAASDwoFZXJyb3IYAiABKAlIAEIKCghyZXNwb25zZSJYChNUcmlnZ2VyU3Vic2NyaXB0aW9uEgoKAmlkGAEgASgJEiUKB3BheWxvYWQYAiABKAsyFC5nb29nbGUucHJvdG9idWYuQW55Eg4KBm1ldGhvZBgDIAEoCSJVChpUcmlnZ2VyU3Vic2NyaXB0aW9uUmVxdWVzdBI3Cg1zdWJzY3JpcHRpb25zGAEgAygLMiAuc2RrLnYxYWxwaGEuVHJpZ2dlclN1YnNjcmlwdGlvbiJACgdUcmlnZ2VyEg4KAmlkGAEgASgEQgIwABIlCgdwYXlsb2FkGAIgASgLMhQuZ29vZ2xlLnByb3RvYnVmLkFueSInChhBd2FpdENhcGFiaWxpdGllc1JlcXVlc3QSCwoDaWRzGAEgAygFIrgBChlBd2FpdENhcGFiaWxpdGllc1Jlc3BvbnNlEkgKCXJlc3BvbnNlcxgBIAMoCzI1LnNkay52MWFscGhhLkF3YWl0Q2FwYWJpbGl0aWVzUmVzcG9uc2UuUmVzcG9uc2VzRW50cnkaUQoOUmVzcG9uc2VzRW50cnkSCwoDa2V5GAEgASgFEi4KBXZhbHVlGAIgASgLMh8uc2RrLnYxYWxwaGEuQ2FwYWJpbGl0eVJlc3BvbnNlOgI4ASKgAQoORXhlY3V0ZVJlcXVlc3QSDgoGY29uZmlnGAEgASgMEisKCXN1YnNjcmliZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eUgAEicKB3RyaWdnZXIYAyABKAsyFC5zZGsudjFhbHBoYS5UcmlnZ2VySAASHQoRbWF4X3Jlc3BvbnNlX3NpemUYBCABKARCAjAAQgkKB3JlcXVlc3QimQEKD0V4ZWN1dGlvblJlc3VsdBIhCgV2YWx1ZRgBIAEoCzIQLnZhbHVlcy52MS5WYWx1ZUgAEg8KBWVycm9yGAIgASgJSAASSAoVdHJpZ2dlcl9zdWJzY3JpcHRpb25zGAMgASgLMicuc2RrLnYxYWxwaGEuVHJpZ2dlclN1YnNjcmlwdGlvblJlcXVlc3RIAEIICgZyZXN1bHQiVgoRR2V0U2VjcmV0c1JlcXVlc3QSLAoIcmVxdWVzdHMYASADKAsyGi5zZGsudjFhbHBoYS5TZWNyZXRSZXF1ZXN0EhMKC2NhbGxiYWNrX2lkGAIgASgFIiIKE0F3YWl0U2VjcmV0c1JlcXVlc3QSCwoDaWRzGAEgAygFIqsBChRBd2FpdFNlY3JldHNSZXNwb25zZRJDCglyZXNwb25zZXMYASADKAsyMC5zZGsudjFhbHBoYS5Bd2FpdFNlY3JldHNSZXNwb25zZS5SZXNwb25zZXNFbnRyeRpOCg5SZXNwb25zZXNFbnRyeRILCgNrZXkYASABKAUSKwoFdmFsdWUYAiABKAsyHC5zZGsudjFhbHBoYS5TZWNyZXRSZXNwb25zZXM6AjgBIi4KDVNlY3JldFJlcXVlc3QSCgoCaWQYASABKAkSEQoJbmFtZXNwYWNlGAIgASgJIkUKBlNlY3JldBIKCgJpZBgBIAEoCRIRCgluYW1lc3BhY2UYAiABKAkSDQoFb3duZXIYAyABKAkSDQoFdmFsdWUYBCABKAkiSgoLU2VjcmV0RXJyb3ISCgoCaWQYASABKAkSEQoJbmFtZXNwYWNlGAIgASgJEg0KBW93bmVyGAMgASgJEg0KBWVycm9yGAQgASgJIm4KDlNlY3JldFJlc3BvbnNlEiUKBnNlY3JldBgBIAEoCzITLnNkay52MWFscGhhLlNlY3JldEgAEikKBWVycm9yGAIgASgLMhguc2RrLnYxYWxwaGEuU2VjcmV0RXJyb3JIAEIKCghyZXNwb25zZSJBCg9TZWNyZXRSZXNwb25zZXMSLgoJcmVzcG9uc2VzGAEgAygLMhsuc2RrLnYxYWxwaGEuU2VjcmV0UmVzcG9uc2UquAEKD0FnZ3JlZ2F0aW9uVHlwZRIgChxBR0dSRUdBVElPTl9UWVBFX1VOU1BFQ0lGSUVEEAASGwoXQUdHUkVHQVRJT05fVFlQRV9NRURJQU4QARIeChpBR0dSRUdBVElPTl9UWVBFX0lERU5USUNBTBACEiIKHkFHR1JFR0FUSU9OX1RZUEVfQ09NTU9OX1BSRUZJWBADEiIKHkFHR1JFR0FUSU9OX1RZUEVfQ09NTU9OX1NVRkZJWBAEKjkKBE1vZGUSFAoQTU9ERV9VTlNQRUNJRklFRBAAEgwKCE1PREVfRE9OEAESDQoJTU9ERV9OT0RFEAJCaAoPY29tLnNkay52MWFscGhhQghTZGtQcm90b1ABogIDU1hYqgILU2RrLlYxYWxwaGHKAgtTZGtcVjFhbHBoYeICF1Nka1xWMWFscGhhXEdQQk1ldGFkYXRh6gIMU2RrOjpWMWFscGhhYgZwcm90bzM", [file_google_protobuf_any, file_google_protobuf_empty, file_values_v1_values]);
+var SimpleConsensusInputsSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 0);
 var ConsensusDescriptorSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 2);
+var ReportRequestSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 3);
+var ReportResponseSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 4);
+var CapabilityRequestSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 6);
+var TriggerSubscriptionRequestSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 9);
+var AwaitCapabilitiesRequestSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 11);
+var AwaitCapabilitiesResponseSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 12);
+var ExecuteRequestSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 13);
+var ExecutionResultSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 14);
+var GetSecretsRequestSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 15);
+var AwaitSecretsRequestSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 16);
+var AwaitSecretsResponseSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 17);
+var SecretRequestSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 18);
 var AggregationType;
 (function(AggregationType2) {
   AggregationType2[AggregationType2["UNSPECIFIED"] = 0] = "UNSPECIFIED";
@@ -7834,6 +7895,16 @@ var TxStatus;
   TxStatus2[TxStatus2["REVERTED"] = 1] = "REVERTED";
   TxStatus2[TxStatus2["SUCCESS"] = 2] = "SUCCESS";
 })(TxStatus || (TxStatus = {}));
+
+class Report {
+  report;
+  constructor(report) {
+    this.report = report.$typeName ? report : fromJson(ReportResponseSchema, report);
+  }
+  x_generatedCodeOnly_unwrap() {
+    return this.report;
+  }
+}
 var hexToBytes = (hexStr) => {
   if (!hexStr.startsWith("0x")) {
     throw new Error(`Invalid hex string: ${hexStr}`);
@@ -12034,6 +12105,267 @@ class UInt64 {
     return new UInt64(this.value / i2.value);
   }
 }
+
+class Decimal {
+  coeffecient;
+  exponent;
+  static parse(s) {
+    const m = /^([+-])?(\d+)(?:\.(\d+))?$/.exec(s.trim());
+    if (!m)
+      throw new Error("invalid decimal string");
+    const signStr = m[1] ?? "+";
+    const intPart = m[2] ?? "0";
+    let fracPart = m[3] ?? "";
+    while (fracPart.length > 0 && fracPart[fracPart.length - 1] === "0") {
+      fracPart = fracPart.slice(0, -1);
+    }
+    const exponent = fracPart.length === 0 ? 0 : -fracPart.length;
+    const digits = intPart + fracPart || "0";
+    const coeffecient = BigInt((signStr === "-" ? "-" : "") + digits);
+    return new Decimal(coeffecient, exponent);
+  }
+  constructor(coeffecient, exponent) {
+    this.coeffecient = coeffecient;
+    this.exponent = exponent;
+  }
+}
+
+class Value {
+  value;
+  static from(value) {
+    return new Value(value);
+  }
+  static wrap(value) {
+    return new Value(value);
+  }
+  constructor(value) {
+    if (value instanceof Value) {
+      this.value = value.value;
+    } else if (isValueProto(value)) {
+      this.value = value;
+    } else {
+      this.value = Value.wrapInternal(value);
+    }
+  }
+  proto() {
+    return this.value;
+  }
+  static toUint8Array(input) {
+    return input instanceof Uint8Array ? input : new Uint8Array(input);
+  }
+  static bigintToBytesBE(abs) {
+    if (abs === 0n)
+      return new Uint8Array;
+    let hex = abs.toString(16);
+    if (hex.length % 2 === 1)
+      hex = "0" + hex;
+    const len2 = hex.length / 2;
+    const out = new Uint8Array(len2);
+    for (let i2 = 0;i2 < len2; i2++) {
+      out[i2] = parseInt(hex.slice(i2 * 2, i2 * 2 + 2), 16);
+    }
+    return out;
+  }
+  static bigIntToProtoBigInt(v) {
+    const sign = v === 0n ? 0n : v < 0n ? -1n : 1n;
+    const abs = v < 0n ? -v : v;
+    return create(BigIntSchema, {
+      absVal: Value.bigintToBytesBE(abs),
+      sign
+    });
+  }
+  static toTimestamp(d) {
+    const date = d instanceof Date ? d : new Date(d);
+    return timestampFromDate(date);
+  }
+  static isPlainObject(v) {
+    return typeof v === "object" && v !== null && v.constructor === Object;
+  }
+  static isObject(v) {
+    return typeof v === "object" && v !== null;
+  }
+  static wrapInternal(v) {
+    if (v === null || v === undefined)
+      throw new Error("cannot wrap null/undefined into Value");
+    if (v instanceof Value) {
+      return v.proto();
+    }
+    if (v instanceof Uint8Array)
+      return create(ValueSchema2, { value: { case: "bytesValue", value: v } });
+    if (v instanceof ArrayBuffer)
+      return create(ValueSchema2, {
+        value: { case: "bytesValue", value: Value.toUint8Array(v) }
+      });
+    if (v instanceof Date)
+      return create(ValueSchema2, {
+        value: { case: "timeValue", value: Value.toTimestamp(v) }
+      });
+    if (v instanceof Int64) {
+      return create(ValueSchema2, {
+        value: { case: "int64Value", value: v.value }
+      });
+    }
+    if (v instanceof UInt64) {
+      return create(ValueSchema2, {
+        value: { case: "uint64Value", value: v.value }
+      });
+    }
+    if (v instanceof Decimal) {
+      const decimalProto = create(DecimalSchema, {
+        coefficient: Value.bigIntToProtoBigInt(v.coeffecient),
+        exponent: v.exponent
+      });
+      return create(ValueSchema2, {
+        value: { case: "decimalValue", value: decimalProto }
+      });
+    }
+    switch (typeof v) {
+      case "string":
+        return create(ValueSchema2, {
+          value: { case: "stringValue", value: v }
+        });
+      case "boolean":
+        return create(ValueSchema2, { value: { case: "boolValue", value: v } });
+      case "bigint": {
+        return create(ValueSchema2, {
+          value: { case: "bigintValue", value: Value.bigIntToProtoBigInt(v) }
+        });
+      }
+      case "number": {
+        return create(ValueSchema2, {
+          value: { case: "float64Value", value: v }
+        });
+      }
+      case "object":
+        break;
+      default:
+        throw new Error(`unsupported type: ${typeof v}`);
+    }
+    if (Array.isArray(v)) {
+      const fields2 = v.map(Value.wrapInternal);
+      const list = create(ListSchema, { fields: fields2 });
+      return create(ValueSchema2, { value: { case: "listValue", value: list } });
+    }
+    if (Value.isPlainObject(v)) {
+      const fields2 = {};
+      for (const [k, vv] of Object.entries(v)) {
+        fields2[k] = Value.wrapInternal(vv);
+      }
+      const map = create(MapSchema, { fields: fields2 });
+      return create(ValueSchema2, { value: { case: "mapValue", value: map } });
+    }
+    if (Value.isObject(v) && v.constructor !== Object) {
+      const fields2 = {};
+      for (const [k, vv] of Object.entries(v)) {
+        fields2[k] = Value.wrapInternal(vv);
+      }
+      const map = create(MapSchema, { fields: fields2 });
+      return create(ValueSchema2, { value: { case: "mapValue", value: map } });
+    }
+    throw new Error("unsupported object instance");
+  }
+  unwrap() {
+    return unwrap(this.value);
+  }
+  unwrapToType(options) {
+    const unwrapped = this.unwrap();
+    if ("instance" in options) {
+      if (typeof unwrapped !== typeof options.instance) {
+        throw new Error(`Cannot unwrap to type ${typeof options.instance}`);
+      }
+      return unwrapped;
+    }
+    if (options.schema) {
+      return options.schema.parse(unwrapped);
+    }
+    const obj = options.factory();
+    if (typeof unwrapped === "object" && unwrapped !== null) {
+      Object.assign(obj, unwrapped);
+    } else {
+      throw new Error(`Cannot copy properties from primitive value to object instance. Use a schema instead.`);
+    }
+    return obj;
+  }
+}
+function unwrap(value) {
+  switch (value.value.case) {
+    case "stringValue":
+      return value.value.value;
+    case "boolValue":
+      return value.value.value;
+    case "bytesValue":
+      return value.value.value;
+    case "int64Value":
+      return new Int64(value.value.value);
+    case "uint64Value":
+      return new UInt64(value.value.value);
+    case "float64Value":
+      return value.value.value;
+    case "bigintValue": {
+      const bigIntValue = value.value.value;
+      const absVal = bigIntValue.absVal;
+      const sign = bigIntValue.sign;
+      let result = 0n;
+      for (const byte of absVal) {
+        result = result << 8n | BigInt(byte);
+      }
+      return sign < 0n ? -result : result;
+    }
+    case "timeValue": {
+      return timestampDate(value.value.value);
+    }
+    case "listValue": {
+      const list = value.value.value;
+      return list.fields.map(unwrap);
+    }
+    case "mapValue": {
+      const map = value.value.value;
+      const result = {};
+      for (const [key, val] of Object.entries(map.fields)) {
+        result[key] = unwrap(val);
+      }
+      return result;
+    }
+    case "decimalValue": {
+      const decimal = value.value.value;
+      const coefficient = decimal.coefficient;
+      const exponent = decimal.exponent;
+      if (!coefficient) {
+        return new Decimal(0n, 0);
+      }
+      let coeffBigInt;
+      const absVal = coefficient.absVal;
+      const sign = coefficient.sign;
+      let result = 0n;
+      for (const byte of absVal) {
+        result = result << 8n | BigInt(byte);
+      }
+      coeffBigInt = sign < 0n ? -result : result;
+      return new Decimal(coeffBigInt, exponent);
+    }
+    default:
+      throw new Error(`Unsupported value type: ${value.value.case}`);
+  }
+}
+function isValueProto(value) {
+  return value.$typeName && typeof value.$typeName === "string" && value.$typeName === "values.v1.Value";
+}
+async function standardValidate(schema, input) {
+  let result = schema["~standard"].validate(input);
+  if (result instanceof Promise)
+    result = await result;
+  if (result.issues) {
+    throw new Error(JSON.stringify(result.issues, null, 2));
+  }
+  return result.value;
+}
+var defaultJsonParser = (config) => JSON.parse(Buffer.from(config).toString());
+var configHandler = async (request, { configParser, configSchema } = {}) => {
+  const config = request.config;
+  const parser = configParser || defaultJsonParser;
+  const intermediateConfig = parser(config);
+  return configSchema ? standardValidate(configSchema, intermediateConfig) : intermediateConfig;
+};
 var exports_external = {};
 __export(exports_external, {
   void: () => voidType,
@@ -14733,9 +15065,9 @@ class ZodUnion extends ZodType {
     return this._def.options;
   }
 }
-ZodUnion.create = (types2, params) => {
+ZodUnion.create = (types3, params) => {
   return new ZodUnion({
-    options: types2,
+    options: types3,
     typeName: ZodFirstPartyTypeKind.ZodUnion,
     ...processCreateParams(params)
   });
@@ -16026,6 +16358,436 @@ var hostBindings = new Proxy({}, {
     return _hostBindings[prop];
   }
 });
+
+class ConsensusCapability {
+  static CAPABILITY_ID = "consensus@1.0.0-alpha";
+  static CAPABILITY_NAME = "consensus";
+  static CAPABILITY_VERSION = "1.0.0-alpha";
+  simple(runtime, input) {
+    let payload;
+    if (input.$typeName) {
+      payload = input;
+    } else {
+      payload = fromJson(SimpleConsensusInputsSchema, input);
+    }
+    const capabilityId = ConsensusCapability.CAPABILITY_ID;
+    const capabilityResponse = runtime.callCapability({
+      capabilityId,
+      method: "Simple",
+      payload,
+      inputSchema: SimpleConsensusInputsSchema,
+      outputSchema: ValueSchema2
+    });
+    return {
+      result: () => {
+        const result = capabilityResponse.result();
+        return result;
+      }
+    };
+  }
+  report(runtime, input) {
+    let payload;
+    if (input.$typeName) {
+      payload = input;
+    } else {
+      payload = fromJson(ReportRequestSchema, input);
+    }
+    const capabilityId = ConsensusCapability.CAPABILITY_ID;
+    const capabilityResponse = runtime.callCapability({
+      capabilityId,
+      method: "Report",
+      payload,
+      inputSchema: ReportRequestSchema,
+      outputSchema: ReportResponseSchema
+    });
+    return {
+      result: () => {
+        const result = capabilityResponse.result();
+        return new Report(result);
+      }
+    };
+  }
+}
+
+class CapabilityError extends Error {
+  name;
+  capabilityId;
+  method;
+  callbackId;
+  constructor(message, options) {
+    super(message);
+    this.name = "CapabilityError";
+    if (options) {
+      this.capabilityId = options.capabilityId;
+      this.method = options.method;
+      this.callbackId = options.callbackId;
+    }
+  }
+}
+
+class DonModeError extends Error {
+  constructor() {
+    super("cannot use Runtime inside RunInNodeMode");
+  }
+}
+
+class NodeModeError extends Error {
+  constructor() {
+    super("cannot use NodeRuntime outside RunInNodeMode");
+    this.name = "NodeModeError";
+  }
+}
+
+class SecretsError extends Error {
+  sceretRequest;
+  error;
+  constructor(sceretRequest, error) {
+    super(`error fetching ${sceretRequest}: ${error}`);
+    this.sceretRequest = sceretRequest;
+    this.error = error;
+  }
+}
+
+class BaseRuntimeImpl {
+  config;
+  nextCallId;
+  helpers;
+  maxResponseSize;
+  mode;
+  modeError;
+  constructor(config, nextCallId, helpers, maxResponseSize, mode) {
+    this.config = config;
+    this.nextCallId = nextCallId;
+    this.helpers = helpers;
+    this.maxResponseSize = maxResponseSize;
+    this.mode = mode;
+  }
+  callCapability({ capabilityId, method, payload, inputSchema, outputSchema }) {
+    if (this.modeError) {
+      return {
+        result: () => {
+          throw this.modeError;
+        }
+      };
+    }
+    const anyPayload = anyPack(inputSchema, payload);
+    const callbackId = this.nextCallId;
+    if (this.mode === Mode.DON) {
+      this.nextCallId++;
+    } else {
+      this.nextCallId--;
+    }
+    const req = create(CapabilityRequestSchema, {
+      id: capabilityId,
+      method,
+      payload: anyPayload,
+      callbackId
+    });
+    if (!this.helpers.call(req)) {
+      return {
+        result: () => {
+          throw new CapabilityError(`Capability not found ${capabilityId}`, {
+            callbackId,
+            method,
+            capabilityId
+          });
+        }
+      };
+    }
+    return {
+      result: () => {
+        const awaitRequest = create(AwaitCapabilitiesRequestSchema, {
+          ids: [callbackId]
+        });
+        const awaitResponse = this.helpers.await(awaitRequest, this.maxResponseSize);
+        const capabilityResponse = awaitResponse.responses[callbackId];
+        if (!capabilityResponse) {
+          throw new CapabilityError(`No response found for callback ID ${callbackId}`, {
+            capabilityId,
+            method,
+            callbackId
+          });
+        }
+        const response = capabilityResponse.response;
+        switch (response.case) {
+          case "payload":
+            return anyUnpack(response.value, outputSchema);
+          case "error":
+            throw new CapabilityError(`Error ${response.value}`, {
+              capabilityId,
+              method,
+              callbackId
+            });
+          default:
+            throw new CapabilityError(`Error cannot unwrap ${response.case}`, {
+              capabilityId,
+              method,
+              callbackId
+            });
+        }
+      }
+    };
+  }
+  getNextCallId() {
+    return this.nextCallId;
+  }
+  now() {
+    return new Date(this.helpers.now() / 1e6);
+  }
+  log(message) {
+    this.helpers.log(message);
+  }
+}
+
+class NodeRuntimeImpl extends BaseRuntimeImpl {
+  _isNodeRuntime = true;
+  constructor(config, nextCallId, helpers, maxResponseSize) {
+    helpers.switchModes(Mode.NODE);
+    super(config, nextCallId, helpers, maxResponseSize, Mode.NODE);
+  }
+}
+
+class RuntimeImpl extends BaseRuntimeImpl {
+  nextNodeCallId = -1;
+  constructor(config, nextCallId, helpers, maxResponseSize) {
+    helpers.switchModes(Mode.DON);
+    super(config, nextCallId, helpers, maxResponseSize, Mode.DON);
+  }
+  runInNodeMode(fn, consesusAggretation, unwrapOptions) {
+    return (...args) => {
+      this.modeError = new DonModeError;
+      const nodeRuntime = new NodeRuntimeImpl(this.config, this.nextNodeCallId, this.helpers, this.maxResponseSize);
+      const consensusInput = create(SimpleConsensusInputsSchema, {
+        descriptors: consesusAggretation.descriptor
+      });
+      if (consesusAggretation.defaultValue) {
+        consensusInput.default = Value.from(consesusAggretation.defaultValue).proto();
+      }
+      try {
+        const observation = fn(nodeRuntime, ...args);
+        consensusInput.observation = {
+          case: "value",
+          value: Value.from(observation).proto()
+        };
+      } catch (e) {
+        consensusInput.observation = {
+          case: "error",
+          value: e instanceof Error && e.message || String(e)
+        };
+      } finally {
+        this.modeError = undefined;
+        this.nextNodeCallId = nodeRuntime.nextCallId;
+        nodeRuntime.modeError = new NodeModeError;
+        this.helpers.switchModes(Mode.DON);
+      }
+      const consensus = new ConsensusCapability;
+      const call = consensus.simple(this, consensusInput);
+      return {
+        result: () => {
+          const result = call.result();
+          const wrappedValue = Value.wrap(result);
+          return unwrapOptions ? wrappedValue.unwrapToType(unwrapOptions) : wrappedValue.unwrap();
+        }
+      };
+    };
+  }
+  getSecret(request) {
+    if (this.modeError) {
+      return {
+        result: () => {
+          throw this.modeError;
+        }
+      };
+    }
+    const secretRequest = request.$typeName ? create(SecretRequestSchema, request) : request;
+    const id = this.nextCallId;
+    this.nextCallId++;
+    const secretsReq = create(GetSecretsRequestSchema, {
+      callbackId: id,
+      requests: [request]
+    });
+    if (!this.helpers.getSecrets(secretsReq, this.maxResponseSize)) {
+      return {
+        result: () => {
+          throw new SecretsError(secretRequest, "host is not making the secrets request");
+        }
+      };
+    }
+    return {
+      result: () => {
+        const awaitRequest = create(AwaitSecretsRequestSchema, { ids: [id] });
+        const awaitResponse = this.helpers.awaitSecrets(awaitRequest, this.maxResponseSize);
+        const secretsResponse = awaitResponse.responses[id];
+        if (!secretsResponse) {
+          throw new SecretsError(secretRequest, "no response");
+        }
+        const responses = secretsResponse.responses;
+        if (responses.length !== 1) {
+          throw new SecretsError(secretRequest, "invalid value returned from host");
+        }
+        const response = responses[0].response;
+        switch (response.case) {
+          case "secret":
+            return response.value;
+          case "error":
+            throw new SecretsError(secretRequest, response.value.error);
+          default:
+            throw new SecretsError(secretRequest, "cannot unmashal returned value from host");
+        }
+      }
+    };
+  }
+  report(input) {
+    const consensus = new ConsensusCapability;
+    const call = consensus.report(this, input);
+    return {
+      result: () => {
+        return call.result();
+      }
+    };
+  }
+}
+
+class Runtime extends RuntimeImpl {
+  constructor(config, nextCallId, maxResponseSize) {
+    super(config, nextCallId, WasmRuntimeHelpers.getInstance(), maxResponseSize);
+  }
+}
+
+class WasmRuntimeHelpers {
+  static instance;
+  constructor() {}
+  now() {
+    return hostBindings.now();
+  }
+  static getInstance() {
+    if (!WasmRuntimeHelpers.instance) {
+      WasmRuntimeHelpers.instance = new WasmRuntimeHelpers;
+    }
+    return WasmRuntimeHelpers.instance;
+  }
+  call(request) {
+    return hostBindings.callCapability(toBinary(CapabilityRequestSchema, request)) >= 0;
+  }
+  await(request, maxResponseSize) {
+    const responseSize = Math.trunc(Number(maxResponseSize));
+    const response = hostBindings.awaitCapabilities(toBinary(AwaitCapabilitiesRequestSchema, request), responseSize);
+    const responseBytes = Array.isArray(response) ? new Uint8Array(response) : response;
+    return fromBinary(AwaitCapabilitiesResponseSchema, responseBytes);
+  }
+  getSecrets(request, maxResponseSize) {
+    const responseSize = Math.trunc(Number(maxResponseSize));
+    return hostBindings.getSecrets(toBinary(GetSecretsRequestSchema, request), responseSize) >= 0;
+  }
+  awaitSecrets(request, maxResponseSize) {
+    const responseSize = Math.trunc(Number(maxResponseSize));
+    const response = hostBindings.awaitSecrets(toBinary(AwaitSecretsRequestSchema, request), responseSize);
+    const responseBytes = Array.isArray(response) ? new Uint8Array(response) : response;
+    return fromBinary(AwaitSecretsResponseSchema, responseBytes);
+  }
+  switchModes(mode) {
+    hostBindings.switchModes(mode);
+  }
+  log(message) {
+    hostBindings.log(message);
+  }
+}
+
+class Runner {
+  config;
+  request;
+  constructor(config, request) {
+    this.config = config;
+    this.request = request;
+  }
+  static async newRunner(configHandlerParams) {
+    hostBindings.versionV2();
+    const request = Runner.getRequest();
+    const config = await configHandler(request, configHandlerParams);
+    return new Runner(config, request);
+  }
+  static getRequest() {
+    const argsString = hostBindings.getWasiArgs();
+    const args = JSON.parse(argsString);
+    if (args.length !== 2) {
+      throw new Error("Invalid request: must contain payload");
+    }
+    const base64Request = args[1];
+    const bytes = Buffer.from(base64Request, "base64");
+    return fromBinary(ExecuteRequestSchema, bytes);
+  }
+  async run(initFn) {
+    const runtime = new Runtime(this.config, 0, this.request.maxResponseSize);
+    var result;
+    try {
+      const workflow = await initFn(this.config, {
+        getSecret: runtime.getSecret.bind(runtime)
+      });
+      switch (this.request.request.case) {
+        case "subscribe":
+          result = this.handleSubscribePhase(this.request, workflow);
+          break;
+        case "trigger":
+          result = this.handleExecutionPhase(this.request, workflow, runtime);
+          break;
+      }
+    } catch (e) {
+      const err = e instanceof Error ? e.message : String(e);
+      result = create(ExecutionResultSchema, {
+        result: { case: "error", value: err }
+      });
+    }
+    const awaitedResult = await result;
+    hostBindings.sendResponse(toBinary(ExecutionResultSchema, awaitedResult));
+  }
+  async handleExecutionPhase(req, workflow, runtime) {
+    if (req.request.case !== "trigger") {
+      throw new Error("cannot handle non-trigger request as a trigger");
+    }
+    const triggerMsg = req.request.value;
+    const index = Number(triggerMsg.id);
+    if (Number.isFinite(index) && index >= 0 && index < workflow.length) {
+      const entry = workflow[index];
+      const schema = entry.trigger.outputSchema();
+      const payloadAny = triggerMsg.payload;
+      const decoded = fromBinary(schema, payloadAny.value);
+      const adapted = entry.trigger.adapt(decoded);
+      try {
+        const result = await entry.fn(runtime, adapted);
+        const wrapped = Value.wrap(result);
+        return create(ExecutionResultSchema, {
+          result: { case: "value", value: wrapped.proto() }
+        });
+      } catch (e) {
+        const err = e instanceof Error ? e.message : String(e);
+        return create(ExecutionResultSchema, {
+          result: { case: "error", value: err }
+        });
+      }
+    }
+    return create(ExecutionResultSchema, {
+      result: { case: "error", value: "trigger not found" }
+    });
+  }
+  handleSubscribePhase(req, workflow) {
+    if (req.request.case !== "subscribe") {
+      return create(ExecutionResultSchema, {
+        result: { case: "error", value: "subscribe request expected" }
+      });
+    }
+    const subscriptions = workflow.map((entry) => ({
+      id: entry.trigger.capabilityId(),
+      method: entry.trigger.method(),
+      payload: entry.trigger.configAsAny()
+    }));
+    const subscriptionRequest = create(TriggerSubscriptionRequestSchema, {
+      subscriptions
+    });
+    return create(ExecutionResultSchema, {
+      result: { case: "triggerSubscriptions", value: subscriptionRequest }
+    });
+  }
+}
 var exports_external2 = {};
 __export(exports_external2, {
   xor: () => xor,
@@ -16070,7 +16832,7 @@ __export(exports_external2, {
   safeEncode: () => safeEncode2,
   safeDecodeAsync: () => safeDecodeAsync2,
   safeDecode: () => safeDecode2,
-  registry: () => registry,
+  registry: () => registry2,
   regexes: () => exports_regexes,
   regex: () => _regex,
   refine: () => refine,
@@ -16169,7 +16931,7 @@ __export(exports_external2, {
   config: () => config,
   coerce: () => exports_coerce,
   codec: () => codec,
-  clone: () => clone,
+  clone: () => clone2,
   cidrv6: () => cidrv62,
   cidrv4: () => cidrv42,
   check: () => check,
@@ -16278,7 +17040,7 @@ __export(exports_core2, {
   safeEncode: () => safeEncode,
   safeDecodeAsync: () => safeDecodeAsync,
   safeDecode: () => safeDecode,
-  registry: () => registry,
+  registry: () => registry2,
   regexes: () => exports_regexes,
   process: () => process2,
   prettifyError: () => prettifyError,
@@ -16304,7 +17066,7 @@ __export(exports_core2, {
   createToJSONSchemaMethod: () => createToJSONSchemaMethod,
   createStandardJSONSchemaMethod: () => createStandardJSONSchemaMethod,
   config: () => config,
-  clone: () => clone,
+  clone: () => clone2,
   _xor: () => _xor,
   _xid: () => _xid,
   _void: () => _void,
@@ -16642,7 +17404,7 @@ __export(exports_util, {
   nullish: () => nullish,
   normalizeParams: () => normalizeParams,
   mergeDefs: () => mergeDefs,
-  merge: () => merge,
+  merge: () => merge2,
   jsonStringifyReplacer: () => jsonStringifyReplacer,
   joinValues: () => joinValues,
   issue: () => issue,
@@ -16662,7 +17424,7 @@ __export(exports_util, {
   defineLazy: () => defineLazy,
   createTransparentProxy: () => createTransparentProxy,
   cloneDef: () => cloneDef,
-  clone: () => clone,
+  clone: () => clone2,
   cleanRegex: () => cleanRegex,
   cleanEnum: () => cleanEnum,
   captureStackTrace: () => captureStackTrace,
@@ -16777,8 +17539,8 @@ function assignProp(target, prop, value2) {
 function mergeDefs(...defs) {
   const mergedDescriptors = {};
   for (const def of defs) {
-    const descriptors = Object.getOwnPropertyDescriptors(def);
-    Object.assign(mergedDescriptors, descriptors);
+    const descriptors2 = Object.getOwnPropertyDescriptors(def);
+    Object.assign(mergedDescriptors, descriptors2);
   }
   return Object.defineProperties({}, mergedDescriptors);
 }
@@ -16912,7 +17674,7 @@ var primitiveTypes = new Set(["string", "number", "bigint", "boolean", "symbol",
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-function clone(inst, def, params) {
+function clone2(inst, def, params) {
   const cl = new inst._zod.constr(def ?? inst._zod.def);
   if (!def || params?.parent)
     cl._zod.parent = inst;
@@ -17013,7 +17775,7 @@ function pick(schema, mask) {
     },
     checks: []
   });
-  return clone(schema, def);
+  return clone2(schema, def);
 }
 function omit(schema, mask) {
   const currDef = schema._zod.def;
@@ -17038,7 +17800,7 @@ function omit(schema, mask) {
     },
     checks: []
   });
-  return clone(schema, def);
+  return clone2(schema, def);
 }
 function extend(schema, shape) {
   if (!isPlainObject(shape)) {
@@ -17061,7 +17823,7 @@ function extend(schema, shape) {
       return _shape;
     }
   });
-  return clone(schema, def);
+  return clone2(schema, def);
 }
 function safeExtend(schema, shape) {
   if (!isPlainObject(shape)) {
@@ -17074,9 +17836,9 @@ function safeExtend(schema, shape) {
       return _shape;
     }
   });
-  return clone(schema, def);
+  return clone2(schema, def);
 }
-function merge(a, b) {
+function merge2(a, b) {
   const def = mergeDefs(a._zod.def, {
     get shape() {
       const _shape = { ...a._zod.def.shape, ...b._zod.def.shape };
@@ -17088,7 +17850,7 @@ function merge(a, b) {
     },
     checks: []
   });
-  return clone(a, def);
+  return clone2(a, def);
 }
 function partial(Class, schema, mask) {
   const currDef = schema._zod.def;
@@ -17126,7 +17888,7 @@ function partial(Class, schema, mask) {
     },
     checks: []
   });
-  return clone(schema, def);
+  return clone2(schema, def);
 }
 function required(Class, schema, mask) {
   const def = mergeDefs(schema._zod.def, {
@@ -17157,7 +17919,7 @@ function required(Class, schema, mask) {
       return shape;
     }
   });
-  return clone(schema, def);
+  return clone2(schema, def);
 }
 function aborted(x, startIndex = 0) {
   if (x.aborted === true)
@@ -25729,10 +26491,10 @@ class $ZodRegistry {
     return this._map.has(schema);
   }
 }
-function registry() {
+function registry2() {
   return new $ZodRegistry;
 }
-(_a = globalThis).__zod_globalRegistry ?? (_a.__zod_globalRegistry = registry());
+(_a = globalThis).__zod_globalRegistry ?? (_a.__zod_globalRegistry = registry2());
 var globalRegistry = globalThis.__zod_globalRegistry;
 function _string(Class2, params) {
   return new Class2({
@@ -26311,10 +27073,10 @@ function _property(property, schema, params) {
     ...normalizeParams(params)
   });
 }
-function _mime(types3, params) {
+function _mime(types4, params) {
   return new $ZodCheckMimeType({
     check: "mime_type",
-    mime: types3,
+    mime: types4,
     ...normalizeParams(params)
   });
 }
@@ -27509,21 +28271,21 @@ var allProcessors = {
 };
 function toJSONSchema(input, params) {
   if ("_idmap" in input) {
-    const registry2 = input;
+    const registry3 = input;
     const ctx2 = initializeContext({ ...params, processors: allProcessors });
     const defs = {};
-    for (const entry of registry2._idmap.entries()) {
+    for (const entry of registry3._idmap.entries()) {
       const [_, schema] = entry;
       process2(schema, ctx2);
     }
     const schemas = {};
     const external2 = {
-      registry: registry2,
+      registry: registry3,
       uri: params?.uri,
       defs
     };
     ctx2.external = external2;
-    for (const entry of registry2._idmap.entries()) {
+    for (const entry of registry3._idmap.entries()) {
       const [key, schema] = entry;
       extractDefs(ctx2, schema);
       schemas[key] = finalize(ctx2, schema);
@@ -27907,7 +28669,7 @@ var ZodType2 = /* @__PURE__ */ $constructor("ZodType", (inst, def) => {
     });
   };
   inst.with = inst.check;
-  inst.clone = (def2, params) => clone(inst, def2, params);
+  inst.clone = (def2, params) => clone2(inst, def2, params);
   inst.brand = () => inst;
   inst.register = (reg, meta2) => {
     reg.add(inst, meta2);
@@ -28520,7 +29282,7 @@ function record(keyType, valueType, params) {
   });
 }
 function partialRecord(keyType, valueType, params) {
-  const k = clone(keyType);
+  const k = clone2(keyType);
   k._zod.values = undefined;
   return new ZodRecord2({
     type: "record",
@@ -28653,7 +29415,7 @@ var ZodFile = /* @__PURE__ */ $constructor("ZodFile", (inst, def) => {
   inst._zod.processJSONSchema = (ctx, json, params) => fileProcessor(inst, ctx, json, params);
   inst.min = (size2, params) => inst.check(_minSize(size2, params));
   inst.max = (size2, params) => inst.check(_maxSize(size2, params));
-  inst.mime = (types3, params) => inst.check(_mime(Array.isArray(types3) ? types3 : [types3], params));
+  inst.mime = (types4, params) => inst.check(_mime(Array.isArray(types4) ? types4 : [types4], params));
 });
 function file(params) {
   return _file(ZodFile, params);
@@ -30659,28 +31421,18 @@ function buildAlertPayload(runtime2, assessment, executionId) {
   };
   return alert;
 }
-function main() {
-  return (config2) => {
-    let validatedConfig;
-    try {
-      validatedConfig = configSchema.parse(config2);
-    } catch (e) {
-      const dummyCapability = new cre.capabilities.CronCapability;
-      return [
-        cre.handler(dummyCapability.trigger({ schedule: "*/5 * * * *" }), (runtime2) => {
-          runtime2.log("Discovery handler execution");
-          return "discovery";
-        })
-      ];
-    }
-    const cronCapability = new cre.capabilities.CronCapability;
-    const onCronTrigger = createOnCronTrigger(validatedConfig);
-    return [
-      cre.handler(cronCapability.trigger({
-        schedule: validatedConfig.cronSchedule ?? "*/5 * * * *"
-      }), onCronTrigger)
-    ];
-  };
+var initWorkflow = (config2) => {
+  const cronCapability = new cre.capabilities.CronCapability;
+  const onCronTrigger = createOnCronTrigger(config2);
+  return [
+    cre.handler(cronCapability.trigger({
+      schedule: config2.cronSchedule ?? "*/5 * * * *"
+    }), onCronTrigger)
+  ];
+};
+async function main() {
+  const runner = await Runner.newRunner({ configSchema });
+  await runner.run(initWorkflow);
 }
 export {
   main

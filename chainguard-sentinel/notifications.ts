@@ -3,7 +3,7 @@
 // Supports Email, Slack, Telegram, Discord, and on-chain notifications.
 
 import {
-  cre,
+  HTTPClient,
   type Runtime,
   type HTTPSendRequester,
 } from "@chainlink/cre-sdk";
@@ -155,7 +155,7 @@ function sendEmailAlert(
       text: textBody,
     };
 
-    const httpClient = new cre.capabilities.HTTPClient();
+    const httpClient = new HTTPClient();
 
     const response = httpClient.sendRequest(
       runtime,
@@ -276,7 +276,7 @@ function sendSlackAlert(
       ],
     };
 
-    const httpClient = new cre.capabilities.HTTPClient();
+    const httpClient = new HTTPClient();
 
     const response = httpClient.sendRequest(
       runtime,
@@ -340,7 +340,7 @@ function sendTelegramAlert(
       disable_web_page_preview: true,
     };
 
-    const httpClient = new cre.capabilities.HTTPClient();
+    const httpClient = new HTTPClient();
 
     const response = httpClient.sendRequest(
       runtime,
@@ -428,7 +428,7 @@ function sendDiscordAlert(
       ],
     };
 
-    const httpClient = new cre.capabilities.HTTPClient();
+    const httpClient = new HTTPClient();
 
     const response = httpClient.sendRequest(
       runtime,

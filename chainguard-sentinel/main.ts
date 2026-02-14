@@ -3,7 +3,9 @@
 // Orchestrates periodic risk monitoring using CRE Cron triggers.
 
 import {
-  cre,
+  CronCapability,
+  handler,
+  Runner,
   type Runtime,
   type CronPayload,
 } from "@chainlink/cre-sdk";
@@ -149,42 +151,30 @@ function buildAlertPayload(
  *********************************/
 
 /**
- * Main entry point for CRE workflow.
- * Handles both discovery (empty config) and runtime (full config).
+ * Workflow initialization function.
+ * Called by the Runner to register handlers.
  */
-export function main() {
-  return (config: Config) => {
-    // 1. Validation (Handle discovery where config might be incomplete)
-    let validatedConfig: Config;
-    try {
-      validatedConfig = configSchema.parse(config);
-    } catch (e: any) {
-      // In discovery mode, return a dummy trigger to satisfy CLI requirements
-      const dummyCapability = new cre.capabilities.CronCapability();
-      return [
-        cre.handler(
-          dummyCapability.trigger({ schedule: "*/5 * * * *" }),
-          (runtime) => {
-             runtime.log("Discovery handler execution");
-             return "discovery";
-          }
-        )
-      ];
-    }
+const initWorkflow = (config: Config) => {
+  const cron = new CronCapability();
+  const onCronTrigger = createOnCronTrigger(config);
 
-    // 2. Production path
-    const cronCapability = new cre.capabilities.CronCapability();
-    const onCronTrigger = createOnCronTrigger(validatedConfig);
+  return [
+    handler(
+      cron.trigger({
+        schedule: config.cronSchedule ?? "*/5 * * * *",
+      }),
+      onCronTrigger
+    ),
+  ];
+};
 
-    return [
-      cre.handler(
-        cronCapability.trigger({
-          schedule: validatedConfig.cronSchedule ?? "*/5 * * * *",
-        }),
-        onCronTrigger
-      ),
-    ];
-  };
+/**
+ * Main entry point for CRE workflow (SDK v1.0.9+ pattern).
+ * Creates a Runner and executes the workflow.
+ */
+export async function main() {
+  const runner = await Runner.newRunner<Config>({ configSchema });
+  await runner.run(initWorkflow);
 }
 
 

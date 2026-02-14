@@ -3,7 +3,7 @@
 // Uses CRE EVM Client to read contract data across multiple chains.
 
 import {
-  cre,
+  EVMClient,
   type Runtime,
   getNetwork,
   bytesToHex,
@@ -84,7 +84,7 @@ export function fetchContractState(
       throw new Error(`Network not found for chain: ${contract.chainSelectorName}`);
     }
 
-    const evmClient = new cre.capabilities.EVMClient(network.chainSelector.selector);
+    const evmClient = new EVMClient(network.chainSelector.selector);
 
     // Initialize result structure
     const stateData: ContractStateData = {

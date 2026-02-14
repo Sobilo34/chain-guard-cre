@@ -3,7 +3,7 @@
 // Uses CRE HTTP capability to query Gemini with structured prompts.
 
 import {
-  cre,
+  HTTPClient,
   consensusIdenticalAggregation,
   type Runtime,
   type HTTPSendRequester,
@@ -156,7 +156,7 @@ export function analyzeRiskWithGemini(
     runtime.log(`Prompt length: ${userPrompt.length} chars`);
 
     // Use CRE HTTP Client for consensus across DON nodes
-    const httpClient = new cre.capabilities.HTTPClient();
+    const httpClient = new HTTPClient();
 
     const result: GeminiResponse = httpClient
       .sendRequest(

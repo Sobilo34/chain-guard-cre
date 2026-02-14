@@ -3,7 +3,7 @@
 // Provides programmatic contract addition/removal functionality
 
 import {
-  cre,
+  EVMClient,
   type Runtime,
   getNetwork,
 } from "@chainlink/cre-sdk";
@@ -75,7 +75,7 @@ export function addContract(
     throw new Error(`Unknown chain: ${chainSelectorName}`);
   }
 
-  const evmClient = new cre.capabilities.EVMClient(network.chainSelector.selector);
+  const evmClient = new EVMClient(network.chainSelector.selector);
 
   // Detect and enrich contract configuration
   const enrichedConfig = enrichContractConfig(

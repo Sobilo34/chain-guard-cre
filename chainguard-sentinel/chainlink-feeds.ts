@@ -3,7 +3,7 @@
 // Reads price feeds, calculates volatility, and monitors data freshness.
 
 import {
-  cre,
+  EVMClient,
   type Runtime,
   getNetwork,
   bytesToHex,
@@ -104,7 +104,7 @@ export function fetchPriceFeed(
       throw new Error(`Network not found for chain: ${chainSelectorName}`);
     }
 
-    const evmClient = new cre.capabilities.EVMClient(network.chainSelector.selector);
+    const evmClient = new EVMClient(network.chainSelector.selector);
 
     // Encode function call
     const callData = encodeFunctionData({
@@ -195,7 +195,7 @@ export function fetchHistoricalPrices(
       throw new Error(`Network not found for chain: ${chainSelectorName}`);
     }
 
-    const evmClient = new cre.capabilities.EVMClient(network.chainSelector.selector);
+    const evmClient = new EVMClient(network.chainSelector.selector);
 
     // Get latest round ID first
     const latestData = fetchPriceFeed(runtime, feedConfig, chainSelectorName);

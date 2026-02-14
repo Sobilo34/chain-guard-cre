@@ -8,9 +8,9 @@
 local-simulation:
   rpcs:
     - chain-name: ethereum-testnet-sepolia
-      url: https://0xrpc.io/sep
+      url: https://ethereum-sepolia-rpc.publicnode.com
     - chain-name: polygon-testnet-amoy
-      url: https://rpc-amoy.polygon.technology
+      url: https://polygon-amoy-bor-rpc.publicnode.com
 
 # ==========================================================================
 staging:
@@ -20,9 +20,9 @@ staging:
     workflow-owner-address: "(optional) Multi-signature contract address"
   rpcs:
     - chain-name: ethereum-testnet-sepolia
-      url: https://0xrpc.io/sep
+      url: https://ethereum-sepolia-rpc.publicnode.com
     - chain-name: polygon-testnet-amoy
-      url: https://rpc-amoy.polygon.technology
+      url: https://polygon-amoy-bor-rpc.publicnode.com
 
 # ==========================================================================
 production:

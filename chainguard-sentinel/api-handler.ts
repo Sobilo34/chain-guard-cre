@@ -33,15 +33,10 @@ function generateContractKey(address: Address, chainSelectorName: string): strin
  * Called once at workflow startup
  */
 export function initializeFromConfig(config: Config): void {
-  console.log("Initializing contract database from config...");
-  
   for (const contract of config.monitoredContracts) {
     const key = generateContractKey(contract.address as Address, contract.chainSelectorName);
     contractDatabase.set(key, contract);
-    console.log(`Loaded contract: ${contract.name} (${key})`);
   }
-  
-  console.log(`Total contracts loaded: ${contractDatabase.size}`);
 }
 
 /**

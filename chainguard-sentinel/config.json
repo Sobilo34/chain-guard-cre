@@ -36,7 +36,7 @@
   ],
   "gasLimit": "1000000",
   "emailConfig": {
-    "from": "ChainGuard <alerts@chainguard.io>",
+    "from": "alerts@chainguard.io",
     "to": [
       "admin@example.com"
     ],

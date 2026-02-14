@@ -21,13 +21,13 @@ const EIP1967_IMPLEMENTATION_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076c
 const EIP1967_BEACON_SLOT = "0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50";
 
 // Diamond Proxy Facets
-const DIAMOND_LOUPE_ABI = parseAbi([
+const getDiamondLoupeAbi = () => parseAbi([
   "function facets() external view returns (tuple(address facetAddress, bytes4[] functionSelectors)[])",
   "function facetAddresses() external view returns (address[])",
 ]);
 
 // UUPS Proxy ABI
-const UUPS_PROXY_ABI = parseAbi([
+const getUupsProxyAbi = () => parseAbi([
   "function implementation() external view returns (address)",
   "function proxiableUUID() external view returns (bytes32)",
 ]);
@@ -59,68 +59,10 @@ export function detectContractType(
   runtime.log(`Detecting contract type for ${contractAddress}`);
 
   // 1. Try to detect UUPS proxy
-  const uupsResult = tryDetectUUPS(runtime, evmClient, contractAddress);
-  if (uupsResult.isProxy) {
-    return {
-      contractType: ContractType.UUPS_PROXY,
-      implementationAddress: uupsResult.implementation,
-      metadata: { proxyType: "UUPS" },
-    };
-  }
-
-  // 2. Try to detect Transparent Proxy (EIP-1967)
-  const transparentResult = tryDetectTransparentProxy(runtime, evmClient, contractAddress);
-  if (transparentResult.isProxy) {
-    return {
-      contractType: ContractType.TRANSPARENT_PROXY,
-      implementationAddress: transparentResult.implementation,
-      metadata: { proxyType: "EIP-1967 Transparent" },
-    };
-  }
-
-  // 3. Try to detect Beacon Proxy
-  const beaconResult = tryDetectBeaconProxy(runtime, evmClient, contractAddress);
-  if (beaconResult.isProxy) {
-    return {
-      contractType: ContractType.BEACON_PROXY,
-      implementationAddress: beaconResult.implementation,
-      metadata: { proxyType: "Beacon", beaconAddress: beaconResult.beaconAddress },
-    };
-  }
-
-  // 4. Try to detect Diamond Proxy (EIP-2535)
-  const diamondResult = tryDetectDiamond(runtime, evmClient, contractAddress);
-  if (diamondResult.isDiamond) {
-    return {
-      contractType: ContractType.DIAMOND_PROXY,
-      facets: diamondResult.facets,
-      metadata: { 
-        proxyType: "Diamond (EIP-2535)",
-        facetCount: diamondResult.facets?.length || 0,
-      },
-    };
-  }
-
-  // 5. Default to normal contract
-  return {
-    contractType: ContractType.NORMAL,
-    metadata: { proxyType: "None" },
-  };
-}
-
-/**
- * Try to detect UUPS proxy pattern
- */
-function tryDetectUUPS(
-  runtime: Runtime<Config>,
-  evmClient: any,
-  contractAddress: Address
-): { isProxy: boolean; implementation?: Address } {
   try {
-    // Try calling implementation() function
     const callData = encodeFunctionData({
-      abi: UUPS_PROXY_ABI,
-      functionName: "implementation",
+      abi: getUupsProxyAbi(),
+      functionName: "proxiableUUID",
     });
 
     const result = evmClient.read({
@@ -129,30 +71,24 @@ function tryDetectUUPS(
     }).result();
 
     const implementation = decodeFunctionResult({
-      abi: UUPS_PROXY_ABI,
+      abi: getUupsProxyAbi(),
       functionName: "implementation",
       data: bytesToHex(result.data || new Uint8Array()),
     }) as Address;
 
     if (implementation && implementation !== zeroAddress) {
       runtime.log(`UUPS proxy detected, implementation: ${implementation}`);
-      return { isProxy: true, implementation };
+      return {
+        contractType: ContractType.UUPS_PROXY,
+        implementationAddress: implementation,
+        metadata: { proxyType: "UUPS" },
+      };
     }
   } catch (err) {
     // Not a UUPS proxy
   }
 
-  return { isProxy: false };
-}
-
-/**
- * Try to detect EIP-1967 Transparent Proxy
- */
-function tryDetectTransparentProxy(
-  runtime: Runtime<Config>,
-  evmClient: any,
-  contractAddress: Address
-): { isProxy: boolean; implementation?: Address } {
+  // 2. Try to detect Transparent Proxy (EIP-1967)
   try {
     // Read EIP-1967 implementation slot directly from storage
     const storageResult = evmClient.getStorageAt({
@@ -166,24 +102,18 @@ function tryDetectTransparentProxy(
       
       if (implementation !== zeroAddress) {
         runtime.log(`Transparent proxy detected, implementation: ${implementation}`);
-        return { isProxy: true, implementation };
+        return {
+          contractType: ContractType.TRANSPARENT_PROXY,
+          implementationAddress: implementation,
+          metadata: { proxyType: "EIP-1967 Transparent" },
+        };
       }
     }
   } catch (err) {
     // Not a transparent proxy
   }
 
-  return { isProxy: false };
-}
-
-/**
- * Try to detect Beacon Proxy pattern
- */
-function tryDetectBeaconProxy(
-  runtime: Runtime<Config>,
-  evmClient: any,
-  contractAddress: Address
-): { isProxy: boolean; implementation?: Address; beaconAddress?: Address } {
+  // 3. Try to detect Beacon Proxy
   try {
     // Read EIP-1967 beacon slot
     const storageResult = evmClient.getStorageAt({
@@ -217,9 +147,16 @@ function tryDetectBeaconProxy(
             data: bytesToHex(result.data || new Uint8Array()),
           }) as Address;
 
-          return { isProxy: true, implementation, beaconAddress };
+          return { 
+            contractType: ContractType.BEACON_PROXY,
+            implementationAddress: implementation,
+            metadata: { proxyType: "Beacon", beaconAddress },
+          };
         } catch {
-          return { isProxy: true, beaconAddress };
+          return { 
+            contractType: ContractType.BEACON_PROXY,
+            metadata: { proxyType: "Beacon", beaconAddress },
+          };
         }
       }
     }
@@ -227,21 +164,10 @@ function tryDetectBeaconProxy(
     // Not a beacon proxy
   }
 
-  return { isProxy: false };
-}
-
-/**
- * Try to detect Diamond proxy pattern (EIP-2535)
- */
-function tryDetectDiamond(
-  runtime: Runtime<Config>,
-  evmClient: any,
-  contractAddress: Address
-): { isDiamond: boolean; facets?: Address[] } {
+  // 4. Try to detect Diamond Proxy (EIP-2535)
   try {
-    // Try calling facetAddresses() - part of DiamondLoupe
     const callData = encodeFunctionData({
-      abi: DIAMOND_LOUPE_ABI,
+      abi: getDiamondLoupeAbi(),
       functionName: "facetAddresses",
     });
 
@@ -251,20 +177,31 @@ function tryDetectDiamond(
     }).result();
 
     const facets = decodeFunctionResult({
-      abi: DIAMOND_LOUPE_ABI,
+      abi: getDiamondLoupeAbi(),
       functionName: "facetAddresses",
       data: bytesToHex(result.data || new Uint8Array()),
     }) as Address[];
 
     if (facets && facets.length > 0) {
       runtime.log(`Diamond proxy detected with ${facets.length} facets`);
-      return { isDiamond: true, facets };
+      return {
+        contractType: ContractType.DIAMOND_PROXY,
+        facets,
+        metadata: { 
+          proxyType: "Diamond (EIP-2535)",
+          facetCount: facets.length,
+        },
+      };
     }
   } catch (err) {
     // Not a diamond proxy
   }
 
-  return { isDiamond: false };
+  // 5. Default to normal contract
+  return {
+    contractType: ContractType.NORMAL,
+    metadata: { proxyType: "None" },
+  };
 }
 
 /*********************************
@@ -291,7 +228,7 @@ export function enrichContractConfig(
     chainSelectorName,
     metadata: {
       contractType: detection.contractType,
-      detectedAt: new Date().toISOString(),
+      detectedAt: new Date(runtime.now()).toISOString(),
       ...detection.metadata,
     },
   };

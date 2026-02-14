@@ -30,7 +30,7 @@ import type {
  * Chainlink Price Feed ABI
  *********************************/
 
-const CHAINLINK_AGGREGATOR_V3_ABI = parseAbi([
+const getChainlinkAggregatorV3Abi = () => parseAbi([
   "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)",
   "function decimals() view returns (uint8)",
   "function description() view returns (string)",
@@ -106,9 +106,9 @@ export function fetchPriceFeed(
 
     const evmClient = new cre.capabilities.EVMClient(network.chainSelector.selector);
 
-    // Encode latestRoundData call
+    // Encode function call
     const callData = encodeFunctionData({
-      abi: CHAINLINK_AGGREGATOR_V3_ABI,
+      abi: getChainlinkAggregatorV3Abi(),
       functionName: "latestRoundData",
     });
 
@@ -124,7 +124,7 @@ export function fetchPriceFeed(
 
     // Decode response
     const decoded = decodeFunctionResult({
-      abi: CHAINLINK_AGGREGATOR_V3_ABI,
+      abi: getChainlinkAggregatorV3Abi(),
       functionName: "latestRoundData",
       data: bytesToHex(result.data || new Uint8Array()),
     }) as any;
@@ -135,7 +135,7 @@ export function fetchPriceFeed(
     const priceFormatted = parseFloat(formatUnits(decoded.answer, feedConfig.decimals));
     
     // Calculate staleness
-    const currentTime = Math.floor(Date.now() / 1000);
+    const currentTime = Math.floor(Number(runtime.now()) / 1000);
     const lastUpdateAgo = currentTime - Number(decoded.updatedAt);
     const isStale = feedConfig.heartbeat
       ? lastUpdateAgo > feedConfig.heartbeat * 2
@@ -209,7 +209,7 @@ export function fetchHistoricalPrices(
 
       try {
         const callData = encodeFunctionData({
-          abi: CHAINLINK_AGGREGATOR_V3_ABI,
+          abi: getChainlinkAggregatorV3Abi(),
           functionName: "getRoundData",
           args: [roundId],
         });
@@ -224,7 +224,7 @@ export function fetchHistoricalPrices(
         }).result();
 
         const decoded = decodeFunctionResult({
-          abi: CHAINLINK_AGGREGATOR_V3_ABI,
+          abi: getChainlinkAggregatorV3Abi(),
           functionName: "getRoundData",
           data: bytesToHex(result.data || new Uint8Array()),
         }) as any;
@@ -328,7 +328,7 @@ export function buildMarketDataSnapshot(
   contract: MonitoredContract
 ): MarketDataSnapshot {
   const snapshot: MarketDataSnapshot = {
-    timestamp: new Date().toISOString(),
+    timestamp: new Date(runtime.now()).toISOString(),
     contractAddress: contract.address,
     chainSelectorName: contract.chainSelectorName,
   };

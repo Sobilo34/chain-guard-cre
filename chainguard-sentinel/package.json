@@ -20,11 +20,9 @@
   "dependencies": {
     "@chainlink/cre-sdk": "0.0.8-alpha",
     "viem": "^2.38.3",
-    "zod": "^4.1.12",
-    "uuid": "^9.0.1"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/bun": "1.2.21",
-    "@types/uuid": "^9.0.7"
+    "@types/bun": "1.2.21"
   }
 }

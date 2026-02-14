@@ -247,7 +247,7 @@ const sendGeminiRequest =
       .result();
 
     const statusCode = response.statusCode;
-    const rawJsonString = Buffer.from(response.body).toString("utf-8");
+    const rawJsonString = new TextDecoder().decode(response.body);
 
     if (statusCode !== 200) {
       throw new Error(`Gemini API error: ${statusCode} - ${rawJsonString.substring(0, 200)}`);

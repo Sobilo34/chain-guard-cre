@@ -22,7 +22,7 @@ import type { Config, MonitoredContract, ContractStateData } from "./types";
  * Standard ERC20 Token ABI
  *********************************/
 
-const ERC20_ABI = parseAbi([
+const getErc20Abi = () => parseAbi([
   "function balanceOf(address owner) view returns (uint256)",
   "function totalSupply() view returns (uint256)",
   "function decimals() view returns (uint8)",
@@ -35,7 +35,7 @@ const ERC20_ABI = parseAbi([
  *********************************/
 
 // Uniswap V2 Pair ABI (for liquidity monitoring)
-const UNISWAP_V2_PAIR_ABI = parseAbi([
+const getUniswapV2PairAbi = () => parseAbi([
   "function getReserves() view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)",
   "function token0() view returns (address)",
   "function token1() view returns (address)",
@@ -43,12 +43,12 @@ const UNISWAP_V2_PAIR_ABI = parseAbi([
 ]);
 
 // Aave V3 Pool ABI (for collateral monitoring)
-const AAVE_V3_POOL_ABI = parseAbi([
+const getAaveV3PoolAbi = () => parseAbi([
   "function getUserAccountData(address user) view returns (uint256 totalCollateralBase, uint256 totalDebtBase, uint256 availableBorrowsBase, uint256 currentLiquidationThreshold, uint256 ltv, uint256 healthFactor)",
 ]);
 
 // Compound V3 Comet ABI
-const COMPOUND_V3_ABI = parseAbi([
+const getCompoundV3Abi = () => parseAbi([
   "function getCollateralReserves(address asset) view returns (uint256)",
   "function totalSupply() view returns (uint256)",
   "function totalBorrow() view returns (uint256)",
@@ -90,18 +90,19 @@ export function fetchContractState(
     const stateData: ContractStateData = {
       contractAddress: contract.address,
       chainSelectorName: contract.chainSelectorName,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(runtime.now()).toISOString(),
       functionResults: [],
     };
 
     // Fetch native balance (ETH/MATIC etc.)
-    const nativeBalance = fetchNativeBalance(evmClient, contract.address);
+    const nativeBalance = fetchNativeBalance(runtime, evmClient, contract.address);
     stateData.nativeBalance = nativeBalance;
     runtime.log(`Native balance: ${formatUnits(nativeBalance, 18)} ETH`);
 
     // If custom ABI and functions are provided, call them
     if (contract.abi && contract.monitoredFunctions && contract.monitoredFunctions.length > 0) {
       const functionResults = fetchCustomFunctions(
+        runtime,
         evmClient,
         contract.address as Address,
         contract.abi as Abi,
@@ -139,6 +140,7 @@ export function fetchContractState(
  * Fetches native token balance (ETH, MATIC, etc.) for an address.
  */
 function fetchNativeBalance(
+  runtime: Runtime<Config>,
   evmClient: any,
   address: string
 ): bigint {
@@ -151,7 +153,7 @@ function fetchNativeBalance(
 
     return balanceResult.value || 0n;
   } catch (err) {
-    console.error("Error fetching native balance:", err);
+    runtime.log(`Error fetching native balance: ${err}`);
     return 0n;
   }
 }
@@ -164,6 +166,7 @@ function fetchNativeBalance(
  * Calls specified functions on a contract and decodes results.
  */
 function fetchCustomFunctions(
+  runtime: Runtime<Config>,
   evmClient: any,
   contractAddress: Address,
   abi: Abi,
@@ -179,7 +182,7 @@ function fetchCustomFunctions(
       );
 
       if (!abiFunction) {
-        console.warn(`Function ${functionName} not found in ABI`);
+        runtime.log(`Function ${functionName} not found in ABI`);
         continue;
       }
 
@@ -210,7 +213,7 @@ function fetchCustomFunctions(
       });
 
     } catch (err) {
-      console.error(`Error calling function ${functionName}:`, err);
+      runtime.log(`Error calling function ${functionName}: ${err}`);
     }
   }
 
@@ -228,25 +231,35 @@ function fetchCustomFunctions(
 function detectAndFetchProtocolData(
   runtime: Runtime<Config>,
   evmClient: any,
-  contractAddress: Address
-): Record<string, any> | null {
-  const data: Record<string, any> = {};
+  address: Address
+): Record<string, any> | undefined {
+  try {
+    // Try Uniswap V2
+    const reserves = evmClient.read({
+      to: address,
+      data: encodeFunctionData({
+        abi: getUniswapV2PairAbi(),
+        functionName: "getReserves",
+      }),
+    }).result();
 
-  // Try ERC20 interface
-  const erc20Data = tryFetchERC20Data(evmClient, contractAddress);
-  if (erc20Data) {
-    runtime.log("Detected ERC20 token");
-    Object.assign(data, { erc20: erc20Data });
+    if (reserves && reserves.data) {
+      const decoded = decodeFunctionResult({
+        abi: getUniswapV2PairAbi(),
+        functionName: "getReserves",
+        data: bytesToHex(reserves.data),
+      }) as [bigint, bigint, number];
+
+      return {
+        reserve0: decoded[0].toString(),
+        reserve1: decoded[1].toString(),
+        lastUpdate: decoded[2],
+      };
+    }
+
+  } catch (err) {
+    // Ignore errors, return undefined
   }
-
-  // Try Uniswap V2 Pair interface
-  const uniswapData = tryFetchUniswapPairData(evmClient, contractAddress);
-  if (uniswapData) {
-    runtime.log("Detected Uniswap V2 Pair");
-    Object.assign(data, { uniswapPair: uniswapData });
-  }
-
-  return Object.keys(data).length > 0 ? data : null;
 }
 
 /**
@@ -259,7 +272,7 @@ function tryFetchERC20Data(
   try {
     // Try to call balanceOf with zero address
     const balanceOfData = encodeFunctionData({
-      abi: ERC20_ABI,
+      abi: getErc20Abi(),
       functionName: "balanceOf",
       args: ["0x0000000000000000000000000000000000000000" as Address],
     });
@@ -271,7 +284,7 @@ function tryFetchERC20Data(
 
     // If successful, fetch more data
     const totalSupplyData = encodeFunctionData({
-      abi: ERC20_ABI,
+      abi: getErc20Abi(),
       functionName: "totalSupply",
     });
 
@@ -281,14 +294,14 @@ function tryFetchERC20Data(
     }).result();
 
     const totalSupply = decodeFunctionResult({
-      abi: ERC20_ABI,
+      abi: getErc20Abi(),
       functionName: "totalSupply",
       data: bytesToHex(totalSupplyResult.data || new Uint8Array()),
     }) as bigint;
 
     // Fetch decimals
     const decimalsData = encodeFunctionData({
-      abi: ERC20_ABI,
+      abi: getErc20Abi(),
       functionName: "decimals",
     });
 
@@ -298,7 +311,7 @@ function tryFetchERC20Data(
     }).result();
 
     const decimals = decodeFunctionResult({
-      abi: ERC20_ABI,
+      abi: getErc20Abi(),
       functionName: "decimals",
       data: bytesToHex(decimalsResult.data || new Uint8Array()),
     }) as number;
@@ -324,7 +337,7 @@ function tryFetchUniswapPairData(
   try {
     // Try to call getReserves
     const getReservesData = encodeFunctionData({
-      abi: UNISWAP_V2_PAIR_ABI,
+      abi: getUniswapV2PairAbi(),
       functionName: "getReserves",
     });
 
@@ -334,7 +347,7 @@ function tryFetchUniswapPairData(
     }).result();
 
     const reserves = decodeFunctionResult({
-      abi: UNISWAP_V2_PAIR_ABI,
+      abi: getUniswapV2PairAbi(),
       functionName: "getReserves",
       data: bytesToHex(reservesResult.data || new Uint8Array()),
     }) as any;
@@ -358,13 +371,14 @@ function tryFetchUniswapPairData(
  * Fetches token balance for a specific address.
  */
 export function fetchTokenBalance(
+  runtime: Runtime<Config>,
   evmClient: any,
   tokenAddress: Address,
   holderAddress: Address
 ): bigint {
   try {
     const callData = encodeFunctionData({
-      abi: ERC20_ABI,
+      abi: getErc20Abi(),
       functionName: "balanceOf",
       args: [holderAddress],
     });
@@ -375,14 +389,14 @@ export function fetchTokenBalance(
     }).result();
 
     const balance = decodeFunctionResult({
-      abi: ERC20_ABI,
+      abi: getErc20Abi(),
       functionName: "balanceOf",
       data: bytesToHex(result.data || new Uint8Array()),
     }) as bigint;
 
     return balance;
   } catch (err) {
-    console.error("Error fetching token balance:", err);
+    runtime.log(`Error fetching token balance: ${err}`);
     return 0n;
   }
 }
@@ -391,6 +405,7 @@ export function fetchTokenBalance(
  * Batch fetch multiple token balances for gas efficiency.
  */
 export function batchFetchTokenBalances(
+  runtime: Runtime<Config>,
   evmClient: any,
   tokenAddresses: Address[],
   holderAddress: Address
@@ -398,7 +413,7 @@ export function batchFetchTokenBalances(
   const balances = new Map<Address, bigint>();
 
   for (const tokenAddress of tokenAddresses) {
-    const balance = fetchTokenBalance(evmClient, tokenAddress, holderAddress);
+    const balance = fetchTokenBalance(runtime, evmClient, tokenAddress, holderAddress);
     balances.set(tokenAddress, balance);
   }
 

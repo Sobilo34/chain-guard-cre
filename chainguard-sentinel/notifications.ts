@@ -52,7 +52,7 @@ export function sendAlerts(
           result = {
             channel: "slack",
             success: false,
-            timestamp: new Date().toISOString(),
+            timestamp: new Date(runtime.now()).toISOString(),
             error: "Channel disabled",
           };
           break;
@@ -63,7 +63,7 @@ export function sendAlerts(
           result = {
             channel: "telegram",
             success: false,
-            timestamp: new Date().toISOString(),
+            timestamp: new Date(runtime.now()).toISOString(),
             error: "Channel disabled",
           };
           break;
@@ -74,7 +74,7 @@ export function sendAlerts(
           result = {
             channel: "discord",
             success: false,
-            timestamp: new Date().toISOString(),
+            timestamp: new Date(runtime.now()).toISOString(),
             error: "Channel disabled",
           };
           break;
@@ -85,7 +85,7 @@ export function sendAlerts(
           result = {
             channel,
             success: false,
-            timestamp: new Date().toISOString(),
+            timestamp: new Date(runtime.now()).toISOString(),
             error: `Unsupported channel: ${channel}`,
           };
       }
@@ -105,7 +105,7 @@ export function sendAlerts(
       results.push({
         channel,
         success: false,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(runtime.now()).toISOString(),
         error: msg,
       });
     }
@@ -177,7 +177,7 @@ function sendEmailAlert(
       // Parse response to get Resend email ID
       let messageId = response.statusCode.toString();
       try {
-        const responseBody = Buffer.from(response.body).toString('utf-8');
+        const responseBody = new TextDecoder().decode(response.body);
         const parsed = JSON.parse(responseBody);
         messageId = parsed.id || messageId;
       } catch {
@@ -187,7 +187,7 @@ function sendEmailAlert(
       return {
         channel: "email",
         success: true,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(runtime.now()).toISOString(),
         messageId: messageId,
       };
     } else {
@@ -198,7 +198,7 @@ function sendEmailAlert(
     return {
       channel: "email",
       success: false,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(runtime.now()).toISOString(),
       error: err instanceof Error ? err.message : String(err),
     };
   }
@@ -295,7 +295,7 @@ function sendSlackAlert(
       return {
         channel: "slack",
         success: true,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(runtime.now()).toISOString(),
       };
     } else {
       throw new Error(`Slack webhook returned status ${response.statusCode}`);
@@ -305,7 +305,7 @@ function sendSlackAlert(
     return {
       channel: "slack",
       success: false,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(runtime.now()).toISOString(),
       error: err instanceof Error ? err.message : String(err),
     };
   }
@@ -362,7 +362,7 @@ function sendTelegramAlert(
       return {
         channel: "telegram",
         success: true,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(runtime.now()).toISOString(),
         messageId: parsed.result?.message_id?.toString(),
       };
     } else {
@@ -373,7 +373,7 @@ function sendTelegramAlert(
     return {
       channel: "telegram",
       success: false,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(runtime.now()).toISOString(),
       error: err instanceof Error ? err.message : String(err),
     };
   }
@@ -447,7 +447,7 @@ function sendDiscordAlert(
       return {
         channel: "discord",
         success: true,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(runtime.now()).toISOString(),
       };
     } else {
       throw new Error(`Discord webhook returned status ${response.statusCode}`);
@@ -457,7 +457,7 @@ function sendDiscordAlert(
     return {
       channel: "discord",
       success: false,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(runtime.now()).toISOString(),
       error: err instanceof Error ? err.message : String(err),
     };
   }
@@ -480,7 +480,7 @@ function sendOnChainAlert(
   return {
     channel: "onchain",
     success: false,
-    timestamp: new Date().toISOString(),
+    timestamp: new Date(runtime.now()).toISOString(),
     error: "Not implemented - requires notification contract deployment",
   };
 }

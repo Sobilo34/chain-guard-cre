@@ -30,3 +30,10 @@ production:
     workflow-path: "./main.ts"
     config-path: "./config.production.json"
     secrets-path: "../secrets.yaml"
+local-simulation-minimal:
+  user-workflow:
+    workflow-name: "minimal-test"
+  workflow-artifacts:
+    workflow-path: "./minimal-test.ts"
+    config-path: "./config-minimal.json"
+    secrets-path: "../secrets.yaml"

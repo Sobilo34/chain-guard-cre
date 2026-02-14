@@ -11,25 +11,25 @@ local-simulation:
       url: https://ethereum-sepolia-rpc.publicnode.com
     - chain-name: polygon-testnet-amoy
       url: https://polygon-amoy-bor-rpc.publicnode.com
+    - chain-name: ethereum-mainnet
+      url: https://eth.llamarpc.com
 
 # ==========================================================================
 staging:
   cre-cli:
     don-family: "zone-a"
-  account:
-    workflow-owner-address: "(optional) Multi-signature contract address"
   rpcs:
     - chain-name: ethereum-testnet-sepolia
       url: https://ethereum-sepolia-rpc.publicnode.com
     - chain-name: polygon-testnet-amoy
       url: https://polygon-amoy-bor-rpc.publicnode.com
+    - chain-name: ethereum-mainnet
+      url: https://eth.llamarpc.com
 
 # ==========================================================================
 production:
   cre-cli:
     don-family: "zone-a"
-  account:
-    workflow-owner-address: "(optional) Multi-signature contract address"
   rpcs:
     - chain-name: ethereum-mainnet
       url: https://eth.llamarpc.com

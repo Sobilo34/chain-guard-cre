@@ -155,6 +155,11 @@ function buildAlertPayload(
  * Called by the Runner to register handlers.
  */
 const initWorkflow = (config: Config) => {
+  const envGeminiKey = (globalThis as any)?.process?.env?.GEMINI_API_KEY as string | undefined;
+  if (!(config as Config & { geminiApiKey?: string }).geminiApiKey && envGeminiKey) {
+    (config as Config & { geminiApiKey?: string }).geminiApiKey = envGeminiKey;
+  }
+
   const cron = new CronCapability();
   const onCronTrigger = createOnCronTrigger(config);
 

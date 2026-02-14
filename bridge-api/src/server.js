@@ -48,6 +48,8 @@ const scanSchema = z.object({
   contractName: z.string().optional(),
 });
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function readWorkflowConfig() {
   try {
     if (!fs.existsSync(configPath)) {
@@ -164,13 +166,44 @@ async function runGeminiRiskAnalysis(payload) {
   };
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(prompt),
-  });
+  let response;
+  let data;
+  let quotaExceeded = false;
 
-  const data = await response.json();
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(prompt),
+    });
+
+    if (response.status !== 429) {
+      break;
+    }
+
+    quotaExceeded = true;
+    await sleep(500 * (attempt + 1));
+  }
+
+  if (response) {
+    data = await response.json();
+  } else {
+    data = {};
+  }
+
+  if (response?.status === 429) {
+    return {
+      riskLevel: "LOW",
+      riskType: "CUSTOM",
+      confidence: 0,
+      reasoning: "Gemini quota exceeded; using fallback assessment.",
+      suggestedActions: ["Increase Gemini quota", "Retry later"],
+      affectedMetrics: [],
+      estimatedImpact: "Limited AI signal due to quota",
+      source: "quota-exceeded",
+      quotaExceeded: true,
+    };
+  }
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
   let parsed;
   try {
@@ -187,7 +220,11 @@ async function runGeminiRiskAnalysis(payload) {
     };
   }
 
-  return { ...parsed, source: "gemini" };
+  return {
+    ...parsed,
+    source: "gemini",
+    quotaExceeded,
+  };
 }
 
 function toAlert(scan) {

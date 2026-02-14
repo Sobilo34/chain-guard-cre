@@ -17235,6 +17235,326 @@ function getDefaultFeedForChain(chainSelectorName) {
   }
   return null;
 }
+var { default: fs } = () => ({});
+function assertPath(path) {
+  if (typeof path !== "string")
+    throw TypeError("Path must be a string. Received " + JSON.stringify(path));
+}
+function normalizeStringPosix(path, allowAboveRoot) {
+  var res = "", lastSegmentLength = 0, lastSlash = -1, dots = 0, code2;
+  for (var i2 = 0;i2 <= path.length; ++i2) {
+    if (i2 < path.length)
+      code2 = path.charCodeAt(i2);
+    else if (code2 === 47)
+      break;
+    else
+      code2 = 47;
+    if (code2 === 47) {
+      if (lastSlash === i2 - 1 || dots === 1)
+        ;
+      else if (lastSlash !== i2 - 1 && dots === 2) {
+        if (res.length < 2 || lastSegmentLength !== 2 || res.charCodeAt(res.length - 1) !== 46 || res.charCodeAt(res.length - 2) !== 46) {
+          if (res.length > 2) {
+            var lastSlashIndex = res.lastIndexOf("/");
+            if (lastSlashIndex !== res.length - 1) {
+              if (lastSlashIndex === -1)
+                res = "", lastSegmentLength = 0;
+              else
+                res = res.slice(0, lastSlashIndex), lastSegmentLength = res.length - 1 - res.lastIndexOf("/");
+              lastSlash = i2, dots = 0;
+              continue;
+            }
+          } else if (res.length === 2 || res.length === 1) {
+            res = "", lastSegmentLength = 0, lastSlash = i2, dots = 0;
+            continue;
+          }
+        }
+        if (allowAboveRoot) {
+          if (res.length > 0)
+            res += "/..";
+          else
+            res = "..";
+          lastSegmentLength = 2;
+        }
+      } else {
+        if (res.length > 0)
+          res += "/" + path.slice(lastSlash + 1, i2);
+        else
+          res = path.slice(lastSlash + 1, i2);
+        lastSegmentLength = i2 - lastSlash - 1;
+      }
+      lastSlash = i2, dots = 0;
+    } else if (code2 === 46 && dots !== -1)
+      ++dots;
+    else
+      dots = -1;
+  }
+  return res;
+}
+function _format(sep, pathObject) {
+  var dir = pathObject.dir || pathObject.root, base = pathObject.base || (pathObject.name || "") + (pathObject.ext || "");
+  if (!dir)
+    return base;
+  if (dir === pathObject.root)
+    return dir + base;
+  return dir + sep + base;
+}
+function resolve() {
+  var resolvedPath = "", resolvedAbsolute = false, cwd;
+  for (var i2 = arguments.length - 1;i2 >= -1 && !resolvedAbsolute; i2--) {
+    var path;
+    if (i2 >= 0)
+      path = arguments[i2];
+    else {
+      if (cwd === undefined)
+        cwd = process.cwd();
+      path = cwd;
+    }
+    if (assertPath(path), path.length === 0)
+      continue;
+    resolvedPath = path + "/" + resolvedPath, resolvedAbsolute = path.charCodeAt(0) === 47;
+  }
+  if (resolvedPath = normalizeStringPosix(resolvedPath, !resolvedAbsolute), resolvedAbsolute)
+    if (resolvedPath.length > 0)
+      return "/" + resolvedPath;
+    else
+      return "/";
+  else if (resolvedPath.length > 0)
+    return resolvedPath;
+  else
+    return ".";
+}
+function normalize(path) {
+  if (assertPath(path), path.length === 0)
+    return ".";
+  var isAbsolute = path.charCodeAt(0) === 47, trailingSeparator = path.charCodeAt(path.length - 1) === 47;
+  if (path = normalizeStringPosix(path, !isAbsolute), path.length === 0 && !isAbsolute)
+    path = ".";
+  if (path.length > 0 && trailingSeparator)
+    path += "/";
+  if (isAbsolute)
+    return "/" + path;
+  return path;
+}
+function isAbsolute(path) {
+  return assertPath(path), path.length > 0 && path.charCodeAt(0) === 47;
+}
+function join() {
+  if (arguments.length === 0)
+    return ".";
+  var joined;
+  for (var i2 = 0;i2 < arguments.length; ++i2) {
+    var arg = arguments[i2];
+    if (assertPath(arg), arg.length > 0)
+      if (joined === undefined)
+        joined = arg;
+      else
+        joined += "/" + arg;
+  }
+  if (joined === undefined)
+    return ".";
+  return normalize(joined);
+}
+function relative(from2, to) {
+  if (assertPath(from2), assertPath(to), from2 === to)
+    return "";
+  if (from2 = resolve(from2), to = resolve(to), from2 === to)
+    return "";
+  var fromStart = 1;
+  for (;fromStart < from2.length; ++fromStart)
+    if (from2.charCodeAt(fromStart) !== 47)
+      break;
+  var fromEnd = from2.length, fromLen = fromEnd - fromStart, toStart = 1;
+  for (;toStart < to.length; ++toStart)
+    if (to.charCodeAt(toStart) !== 47)
+      break;
+  var toEnd = to.length, toLen = toEnd - toStart, length = fromLen < toLen ? fromLen : toLen, lastCommonSep = -1, i2 = 0;
+  for (;i2 <= length; ++i2) {
+    if (i2 === length) {
+      if (toLen > length) {
+        if (to.charCodeAt(toStart + i2) === 47)
+          return to.slice(toStart + i2 + 1);
+        else if (i2 === 0)
+          return to.slice(toStart + i2);
+      } else if (fromLen > length) {
+        if (from2.charCodeAt(fromStart + i2) === 47)
+          lastCommonSep = i2;
+        else if (i2 === 0)
+          lastCommonSep = 0;
+      }
+      break;
+    }
+    var fromCode = from2.charCodeAt(fromStart + i2), toCode = to.charCodeAt(toStart + i2);
+    if (fromCode !== toCode)
+      break;
+    else if (fromCode === 47)
+      lastCommonSep = i2;
+  }
+  var out = "";
+  for (i2 = fromStart + lastCommonSep + 1;i2 <= fromEnd; ++i2)
+    if (i2 === fromEnd || from2.charCodeAt(i2) === 47)
+      if (out.length === 0)
+        out += "..";
+      else
+        out += "/..";
+  if (out.length > 0)
+    return out + to.slice(toStart + lastCommonSep);
+  else {
+    if (toStart += lastCommonSep, to.charCodeAt(toStart) === 47)
+      ++toStart;
+    return to.slice(toStart);
+  }
+}
+function _makeLong(path) {
+  return path;
+}
+function dirname(path) {
+  if (assertPath(path), path.length === 0)
+    return ".";
+  var code2 = path.charCodeAt(0), hasRoot = code2 === 47, end = -1, matchedSlash = true;
+  for (var i2 = path.length - 1;i2 >= 1; --i2)
+    if (code2 = path.charCodeAt(i2), code2 === 47) {
+      if (!matchedSlash) {
+        end = i2;
+        break;
+      }
+    } else
+      matchedSlash = false;
+  if (end === -1)
+    return hasRoot ? "/" : ".";
+  if (hasRoot && end === 1)
+    return "//";
+  return path.slice(0, end);
+}
+function basename(path, ext) {
+  if (ext !== undefined && typeof ext !== "string")
+    throw TypeError('"ext" argument must be a string');
+  assertPath(path);
+  var start = 0, end = -1, matchedSlash = true, i2;
+  if (ext !== undefined && ext.length > 0 && ext.length <= path.length) {
+    if (ext.length === path.length && ext === path)
+      return "";
+    var extIdx = ext.length - 1, firstNonSlashEnd = -1;
+    for (i2 = path.length - 1;i2 >= 0; --i2) {
+      var code2 = path.charCodeAt(i2);
+      if (code2 === 47) {
+        if (!matchedSlash) {
+          start = i2 + 1;
+          break;
+        }
+      } else {
+        if (firstNonSlashEnd === -1)
+          matchedSlash = false, firstNonSlashEnd = i2 + 1;
+        if (extIdx >= 0)
+          if (code2 === ext.charCodeAt(extIdx)) {
+            if (--extIdx === -1)
+              end = i2;
+          } else
+            extIdx = -1, end = firstNonSlashEnd;
+      }
+    }
+    if (start === end)
+      end = firstNonSlashEnd;
+    else if (end === -1)
+      end = path.length;
+    return path.slice(start, end);
+  } else {
+    for (i2 = path.length - 1;i2 >= 0; --i2)
+      if (path.charCodeAt(i2) === 47) {
+        if (!matchedSlash) {
+          start = i2 + 1;
+          break;
+        }
+      } else if (end === -1)
+        matchedSlash = false, end = i2 + 1;
+    if (end === -1)
+      return "";
+    return path.slice(start, end);
+  }
+}
+function extname(path) {
+  assertPath(path);
+  var startDot = -1, startPart = 0, end = -1, matchedSlash = true, preDotState = 0;
+  for (var i2 = path.length - 1;i2 >= 0; --i2) {
+    var code2 = path.charCodeAt(i2);
+    if (code2 === 47) {
+      if (!matchedSlash) {
+        startPart = i2 + 1;
+        break;
+      }
+      continue;
+    }
+    if (end === -1)
+      matchedSlash = false, end = i2 + 1;
+    if (code2 === 46) {
+      if (startDot === -1)
+        startDot = i2;
+      else if (preDotState !== 1)
+        preDotState = 1;
+    } else if (startDot !== -1)
+      preDotState = -1;
+  }
+  if (startDot === -1 || end === -1 || preDotState === 0 || preDotState === 1 && startDot === end - 1 && startDot === startPart + 1)
+    return "";
+  return path.slice(startDot, end);
+}
+function format(pathObject) {
+  if (pathObject === null || typeof pathObject !== "object")
+    throw TypeError('The "pathObject" argument must be of type Object. Received type ' + typeof pathObject);
+  return _format("/", pathObject);
+}
+function parse(path) {
+  assertPath(path);
+  var ret = { root: "", dir: "", base: "", ext: "", name: "" };
+  if (path.length === 0)
+    return ret;
+  var code2 = path.charCodeAt(0), isAbsolute2 = code2 === 47, start;
+  if (isAbsolute2)
+    ret.root = "/", start = 1;
+  else
+    start = 0;
+  var startDot = -1, startPart = 0, end = -1, matchedSlash = true, i2 = path.length - 1, preDotState = 0;
+  for (;i2 >= start; --i2) {
+    if (code2 = path.charCodeAt(i2), code2 === 47) {
+      if (!matchedSlash) {
+        startPart = i2 + 1;
+        break;
+      }
+      continue;
+    }
+    if (end === -1)
+      matchedSlash = false, end = i2 + 1;
+    if (code2 === 46) {
+      if (startDot === -1)
+        startDot = i2;
+      else if (preDotState !== 1)
+        preDotState = 1;
+    } else if (startDot !== -1)
+      preDotState = -1;
+  }
+  if (startDot === -1 || end === -1 || preDotState === 0 || preDotState === 1 && startDot === end - 1 && startDot === startPart + 1) {
+    if (end !== -1)
+      if (startPart === 0 && isAbsolute2)
+        ret.base = ret.name = path.slice(1, end);
+      else
+        ret.base = ret.name = path.slice(startPart, end);
+  } else {
+    if (startPart === 0 && isAbsolute2)
+      ret.name = path.slice(1, startDot), ret.base = path.slice(1, end);
+    else
+      ret.name = path.slice(startPart, startDot), ret.base = path.slice(startPart, end);
+    ret.ext = path.slice(startDot, end);
+  }
+  if (startPart > 0)
+    ret.dir = path.slice(0, startPart - 1);
+  else if (isAbsolute2)
+    ret.dir = "/";
+  return ret;
+}
+var sep = "/";
+var delimiter = ":";
+var posix = ((p) => (p.posix = p, p))({ resolve, normalize, isAbsolute, join, relative, _makeLong, dirname, basename, extname, format, parse, sep, delimiter, win32: null, posix: null });
+var path_default = posix;
 var SYSTEM_PROMPT = `
 You are an expert DeFi risk analyst specializing in smart contract and market risk assessment.
 Your task is to analyze on-chain data and market metrics to identify potential risks for deployed smart contracts.
@@ -17311,6 +17631,30 @@ CONFIGURED RISK THRESHOLDS:
 
 Provide a comprehensive risk assessment following the required JSON format.
 `;
+function tryLoadGeminiKeyFromLocalFiles() {
+  const cwd = globalThis?.process?.cwd?.() || "";
+  if (!cwd)
+    return "";
+  const candidates = [
+    path_default.join(cwd, ".env"),
+    path_default.join(cwd, "secrets.yaml"),
+    path_default.join(cwd, "chainguard-sentinel", "..", "secrets.yaml")
+  ];
+  for (const filePath of candidates) {
+    try {
+      if (!fs.existsSync(filePath))
+        continue;
+      const raw = fs.readFileSync(filePath, "utf8");
+      const envMatch = raw.match(/^\s*GEMINI_API_KEY\s*=\s*['\"]?([^'\"\n]+)['\"]?\s*$/m);
+      if (envMatch?.[1])
+        return envMatch[1].trim();
+      const yamlMatch = raw.match(/^\s*GEMINI_API_KEY\s*:\s*['\"]?([^'\"\n]+)['\"]?\s*$/m);
+      if (yamlMatch?.[1])
+        return yamlMatch[1].trim();
+    } catch {}
+  }
+  return "";
+}
 function analyzeRiskWithGemini(runtime2, contractName, contractAddress, chainName, marketData, contractState, riskThresholds) {
   try {
     runtime2.log(`Querying Gemini AI for risk analysis: ${contractName}`);
@@ -17323,6 +17667,12 @@ function analyzeRiskWithGemini(runtime2, contractName, contractAddress, chainNam
     }
     if (!geminiApiKeyValue) {
       geminiApiKeyValue = runtime2.config.geminiApiKey || "";
+    }
+    if (!geminiApiKeyValue) {
+      geminiApiKeyValue = globalThis?.process?.env?.GEMINI_API_KEY || "";
+    }
+    if (!geminiApiKeyValue) {
+      geminiApiKeyValue = tryLoadGeminiKeyFromLocalFiles();
     }
     if (!geminiApiKeyValue) {
       runtime2.log("Gemini key missing in runtime secrets/config, using fallback risk response");
@@ -17385,17 +17735,38 @@ var sendGeminiRequest = (apiKey, userPrompt) => (sendRequester, config) => {
       }
     ]
   };
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel ?? "gemini-2.0-flash-exp"}:generateContent?key=${apiKey}`;
-  const response = sendRequester.sendRequest({
-    method: "POST",
-    url: apiUrl,
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(requestPayload)
-  }).result();
-  const statusCode = response.statusCode;
-  const rawJsonString = new TextDecoder().decode(response.body);
+  const preferredModel = config.geminiModel ?? "gemini-1.5-flash";
+  const modelCandidates = Array.from(new Set([
+    preferredModel,
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-001",
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+    "gemini-pro-latest"
+  ]));
+  let statusCode = 0;
+  let rawJsonString = "";
+  for (const model of modelCandidates) {
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const response = sendRequester.sendRequest({
+      method: "POST",
+      url: apiUrl,
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: new TextEncoder().encode(JSON.stringify(requestPayload))
+    }).result();
+    statusCode = response.statusCode;
+    rawJsonString = new TextDecoder().decode(response.body);
+    if (statusCode === 200) {
+      break;
+    }
+    const lower = rawJsonString.toLowerCase();
+    const isModelError = statusCode === 404 && (lower.includes("not found") || lower.includes("not supported"));
+    if (!isModelError) {
+      break;
+    }
+  }
   if (statusCode !== 200) {
     throw new Error(`Gemini API error: ${statusCode} - ${rawJsonString.substring(0, 200)}`);
   }
@@ -18052,6 +18423,10 @@ function buildAlertPayload(runtime2, assessment, executionId) {
   return alert;
 }
 var initWorkflow = (config) => {
+  const envGeminiKey = globalThis?.process?.env?.GEMINI_API_KEY;
+  if (!config.geminiApiKey && envGeminiKey) {
+    config.geminiApiKey = envGeminiKey;
+  }
   const cron = new CronCapability;
   const onCronTrigger = createOnCronTrigger(config);
   return [

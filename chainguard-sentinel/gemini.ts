@@ -8,6 +8,8 @@ import {
   type Runtime,
   type HTTPSendRequester,
 } from "@chainlink/cre-sdk";
+import fs from "node:fs";
+import path from "node:path";
 import type {
   Config,
   MarketDataSnapshot,
@@ -107,6 +109,33 @@ CONFIGURED RISK THRESHOLDS:
 Provide a comprehensive risk assessment following the required JSON format.
 `;
 
+function tryLoadGeminiKeyFromLocalFiles(): string {
+  const cwd = ((globalThis as any)?.process?.cwd?.() as string | undefined) || "";
+  if (!cwd) return "";
+
+  const candidates = [
+    path.join(cwd, ".env"),
+    path.join(cwd, "secrets.yaml"),
+    path.join(cwd, "chainguard-sentinel", "..", "secrets.yaml"),
+  ];
+
+  for (const filePath of candidates) {
+    try {
+      if (!fs.existsSync(filePath)) continue;
+      const raw = fs.readFileSync(filePath, "utf8");
+
+      const envMatch = raw.match(/^\s*GEMINI_API_KEY\s*=\s*['\"]?([^'\"\n]+)['\"]?\s*$/m);
+      if (envMatch?.[1]) return envMatch[1].trim();
+
+      const yamlMatch = raw.match(/^\s*GEMINI_API_KEY\s*:\s*['\"]?([^'\"\n]+)['\"]?\s*$/m);
+      if (yamlMatch?.[1]) return yamlMatch[1].trim();
+    } catch {
+    }
+  }
+
+  return "";
+}
+
 /*********************************
  * Main Gemini Integration
  *********************************/
@@ -148,6 +177,15 @@ export function analyzeRiskWithGemini(
     if (!geminiApiKeyValue) {
       geminiApiKeyValue =
         (runtime.config as Config & { geminiApiKey?: string }).geminiApiKey || "";
+    }
+
+    if (!geminiApiKeyValue) {
+      geminiApiKeyValue =
+        ((globalThis as any)?.process?.env?.GEMINI_API_KEY as string | undefined) || "";
+    }
+
+    if (!geminiApiKeyValue) {
+      geminiApiKeyValue = tryLoadGeminiKeyFromLocalFiles();
     }
 
     if (!geminiApiKeyValue) {
@@ -255,22 +293,48 @@ const sendGeminiRequest =
       ],
     };
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel ?? "gemini-2.0-flash-exp"}:generateContent?key=${apiKey}`;
+    const preferredModel = config.geminiModel ?? "gemini-1.5-flash";
+    const modelCandidates = Array.from(
+      new Set([
+        preferredModel,
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-001",
+        "gemini-2.5-flash",
+        "gemini-flash-latest",
+        "gemini-pro-latest",
+      ])
+    );
 
-    // Send HTTP POST request
-    const response = sendRequester
-      .sendRequest({
-        method: "POST",
-        url: apiUrl,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestPayload),
-      })
-      .result();
+    let statusCode = 0;
+    let rawJsonString = "";
 
-    const statusCode = response.statusCode;
-    const rawJsonString = new TextDecoder().decode(response.body);
+    for (const model of modelCandidates) {
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const response = sendRequester
+        .sendRequest({
+          method: "POST",
+          url: apiUrl,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: new TextEncoder().encode(JSON.stringify(requestPayload)),
+        })
+        .result();
+
+      statusCode = response.statusCode;
+      rawJsonString = new TextDecoder().decode(response.body);
+
+      if (statusCode === 200) {
+        break;
+      }
+
+      const lower = rawJsonString.toLowerCase();
+      const isModelError = statusCode === 404 && (lower.includes("not found") || lower.includes("not supported"));
+      if (!isModelError) {
+        break;
+      }
+    }
 
     if (statusCode !== 200) {
       throw new Error(`Gemini API error: ${statusCode} - ${rawJsonString.substring(0, 200)}`);

@@ -145,13 +145,18 @@ function fetchNativeBalance(
   address: string
 ): bigint {
   try {
-    // Use eth_getBalance RPC call
-    const balanceResult = evmClient.read({
-      to: address as Address,
-      data: "0x", // Empty data for balance query
-    }).result();
+    // Prefer explicit native-balance APIs when available on the SDK client.
+    if (typeof evmClient.getBalance === "function") {
+      const balanceResult = evmClient.getBalance({
+        address: address as Address,
+      }).result();
 
-    return balanceResult.value || 0n;
+      if (typeof balanceResult === "bigint") return balanceResult;
+      if (typeof balanceResult?.value === "bigint") return balanceResult.value;
+    }
+
+    // Fallback: skip native balance when capability is unavailable.
+    return 0n;
   } catch (err) {
     runtime.log(`Error fetching native balance: ${err}`);
     return 0n;

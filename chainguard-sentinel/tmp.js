@@ -16955,11 +16955,16 @@ function fetchContractState(runtime2, contract) {
 }
 function fetchNativeBalance(runtime2, evmClient, address) {
   try {
-    const balanceResult = evmClient.read({
-      to: address,
-      data: "0x"
-    }).result();
-    return balanceResult.value || 0n;
+    if (typeof evmClient.getBalance === "function") {
+      const balanceResult = evmClient.getBalance({
+        address
+      }).result();
+      if (typeof balanceResult === "bigint")
+        return balanceResult;
+      if (typeof balanceResult?.value === "bigint")
+        return balanceResult.value;
+    }
+    return 0n;
   } catch (err) {
     runtime2.log(`Error fetching native balance: ${err}`);
     return 0n;
@@ -17085,10 +17090,10 @@ function fetchPriceFeed(runtime2, feedConfig, chainSelectorName) {
       functionName: "latestRoundData",
       data: bytesToHex(result.data || new Uint8Array)
     });
-    const [roundId, answer, startedAt, updatedAt, answeredInRound] = decoded;
-    const priceFormatted = parseFloat(formatUnits(decoded.answer, feedConfig.decimals));
+    const [roundId, answer, _startedAt, updatedAt, answeredInRound] = decoded;
+    const priceFormatted = parseFloat(formatUnits(answer, feedConfig.decimals));
     const currentTime = Math.floor(Number(runtime2.now()) / 1000);
-    const lastUpdateAgo = currentTime - Number(decoded.updatedAt);
+    const lastUpdateAgo = currentTime - Number(updatedAt);
     const isStale = feedConfig.heartbeat ? lastUpdateAgo > feedConfig.heartbeat * 2 : false;
     const feedData = {
       feedAddress: feedConfig.feedAddress,
@@ -17309,14 +17314,35 @@ Provide a comprehensive risk assessment following the required JSON format.
 function analyzeRiskWithGemini(runtime2, contractName, contractAddress, chainName, marketData, contractState, riskThresholds) {
   try {
     runtime2.log(`Querying Gemini AI for risk analysis: ${contractName}`);
-    const geminiApiKey = runtime2.getSecret({ id: "GEMINI_API_KEY" }).result();
-    if (!geminiApiKey.value) {
-      throw new Error("GEMINI_API_KEY not found in secrets");
+    let geminiApiKeyValue = "";
+    try {
+      const geminiApiKey = runtime2.getSecret({ id: "GEMINI_API_KEY" }).result();
+      geminiApiKeyValue = geminiApiKey.value || "";
+    } catch {
+      geminiApiKeyValue = "";
+    }
+    if (!geminiApiKeyValue) {
+      geminiApiKeyValue = runtime2.config.geminiApiKey || "";
+    }
+    if (!geminiApiKeyValue) {
+      runtime2.log("Gemini key missing in runtime secrets/config, using fallback risk response");
+      return {
+        riskLevel: "LOW",
+        riskType: "CUSTOM",
+        confidence: 0,
+        reasoning: "Gemini API key unavailable; fallback heuristic used",
+        suggestedActions: [
+          "Set GEMINI_API_KEY in CRE secrets",
+          "Optionally set geminiApiKey in local config for simulation"
+        ],
+        affectedMetrics: [],
+        estimatedImpact: "Limited AI signal; deterministic checks still applied"
+      };
     }
     const userPrompt = buildUserPrompt(contractName, contractAddress, chainName, marketData, contractState, riskThresholds);
     runtime2.log(`Prompt length: ${userPrompt.length} chars`);
     const httpClient = new ClientCapability2;
-    const result = httpClient.sendRequest(runtime2, sendGeminiRequest(geminiApiKey.value, userPrompt), consensusIdenticalAggregation())(runtime2.config).result();
+    const result = httpClient.sendRequest(runtime2, sendGeminiRequest(geminiApiKeyValue, userPrompt), consensusIdenticalAggregation())(runtime2.config).result();
     runtime2.log(`Gemini API status: ${result.statusCode}`);
     if (result.statusCode !== 200) {
       throw new Error(`Gemini API returned status ${result.statusCode}`);

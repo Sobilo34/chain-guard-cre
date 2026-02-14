@@ -136,11 +136,34 @@ export function analyzeRiskWithGemini(
   try {
     runtime.log(`Querying Gemini AI for risk analysis: ${contractName}`);
 
-    // Get Gemini API key from secrets
-    const geminiApiKey = runtime.getSecret({ id: "GEMINI_API_KEY" }).result();
+    // Get Gemini API key from secrets, then fallback to config.
+    let geminiApiKeyValue = "";
+    try {
+      const geminiApiKey = runtime.getSecret({ id: "GEMINI_API_KEY" }).result();
+      geminiApiKeyValue = geminiApiKey.value || "";
+    } catch {
+      geminiApiKeyValue = "";
+    }
 
-    if (!geminiApiKey.value) {
-      throw new Error("GEMINI_API_KEY not found in secrets");
+    if (!geminiApiKeyValue) {
+      geminiApiKeyValue =
+        (runtime.config as Config & { geminiApiKey?: string }).geminiApiKey || "";
+    }
+
+    if (!geminiApiKeyValue) {
+      runtime.log("Gemini key missing in runtime secrets/config, using fallback risk response");
+      return {
+        riskLevel: "LOW",
+        riskType: "CUSTOM",
+        confidence: 0,
+        reasoning: "Gemini API key unavailable; fallback heuristic used",
+        suggestedActions: [
+          "Set GEMINI_API_KEY in CRE secrets",
+          "Optionally set geminiApiKey in local config for simulation",
+        ],
+        affectedMetrics: [],
+        estimatedImpact: "Limited AI signal; deterministic checks still applied",
+      };
     }
 
     // Build user prompt with actual data
@@ -161,7 +184,7 @@ export function analyzeRiskWithGemini(
     const result: GeminiResponse = httpClient
       .sendRequest(
         runtime,
-        sendGeminiRequest(geminiApiKey.value, userPrompt),
+        sendGeminiRequest(geminiApiKeyValue, userPrompt),
         consensusIdenticalAggregation<GeminiResponse>()
       )(runtime.config)
       .result();

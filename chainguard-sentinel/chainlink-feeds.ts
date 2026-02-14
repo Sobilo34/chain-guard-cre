@@ -129,14 +129,15 @@ export function fetchPriceFeed(
       data: bytesToHex(result.data || new Uint8Array()),
     }) as any;
 
-    const [roundId, answer, startedAt, updatedAt, answeredInRound] = decoded as [bigint, bigint, bigint, bigint, bigint];
+    const [roundId, answer, _startedAt, updatedAt, answeredInRound] =
+      decoded as [bigint, bigint, bigint, bigint, bigint];
 
     // Format price
-    const priceFormatted = parseFloat(formatUnits(decoded.answer, feedConfig.decimals));
+    const priceFormatted = parseFloat(formatUnits(answer, feedConfig.decimals));
     
     // Calculate staleness
     const currentTime = Math.floor(Number(runtime.now()) / 1000);
-    const lastUpdateAgo = currentTime - Number(decoded.updatedAt);
+    const lastUpdateAgo = currentTime - Number(updatedAt);
     const isStale = feedConfig.heartbeat
       ? lastUpdateAgo > feedConfig.heartbeat * 2
       : false;

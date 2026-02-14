@@ -1,0 +1,9 @@
+{
+  "geminiModel": "gemini-2.0-flash-exp",
+  "cronSchedule": "*/5 * * * *",
+  "monitoredContracts": [],
+  "gasLimit": "1500000",
+  "verboseLogging": false,
+  "maxContractsPerRun": 100,
+  "geminiTimeoutMs": 45000
+}

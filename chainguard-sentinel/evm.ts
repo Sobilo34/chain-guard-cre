@@ -1,0 +1,427 @@
+// evm.ts
+// On-chain data fetching module for reading smart contract state.
+// Uses CRE EVM Client to read contract data across multiple chains.
+
+import {
+  cre,
+  type Runtime,
+  getNetwork,
+  bytesToHex,
+} from "@chainlink/cre-sdk";
+import {
+  type Address,
+  encodeFunctionData,
+  decodeFunctionResult,
+  parseAbi,
+  type Abi,
+  formatUnits,
+} from "viem";
+import type { Config, MonitoredContract, ContractStateData } from "./types";
+
+/*********************************
+ * Standard ERC20 Token ABI
+ *********************************/
+
+const ERC20_ABI = parseAbi([
+  "function balanceOf(address owner) view returns (uint256)",
+  "function totalSupply() view returns (uint256)",
+  "function decimals() view returns (uint8)",
+  "function name() view returns (string)",
+  "function symbol() view returns (string)",
+]);
+
+/*********************************
+ * Common DeFi Protocol ABIs
+ *********************************/
+
+// Uniswap V2 Pair ABI (for liquidity monitoring)
+const UNISWAP_V2_PAIR_ABI = parseAbi([
+  "function getReserves() view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)",
+  "function token0() view returns (address)",
+  "function token1() view returns (address)",
+  "function totalSupply() view returns (uint256)",
+]);
+
+// Aave V3 Pool ABI (for collateral monitoring)
+const AAVE_V3_POOL_ABI = parseAbi([
+  "function getUserAccountData(address user) view returns (uint256 totalCollateralBase, uint256 totalDebtBase, uint256 availableBorrowsBase, uint256 currentLiquidationThreshold, uint256 ltv, uint256 healthFactor)",
+]);
+
+// Compound V3 Comet ABI
+const COMPOUND_V3_ABI = parseAbi([
+  "function getCollateralReserves(address asset) view returns (uint256)",
+  "function totalSupply() view returns (uint256)",
+  "function totalBorrow() view returns (uint256)",
+]);
+
+/*********************************
+ * Main Contract State Fetching
+ *********************************/
+
+/**
+ * Fetches current state data from a monitored smart contract.
+ * Reads on-chain data using CRE EVM Client and decodes responses.
+ * 
+ * @param runtime - CRE runtime instance
+ * @param contract - Monitored contract configuration
+ * @returns Contract state data including balances and function results
+ */
+export function fetchContractState(
+  runtime: Runtime<Config>,
+  contract: MonitoredContract
+): ContractStateData {
+  try {
+    runtime.log(`Fetching state for contract: ${contract.name} (${contract.address})`);
+
+    // Get network configuration
+    const network = getNetwork({
+      chainFamily: "evm",
+      chainSelectorName: contract.chainSelectorName,
+      isTestnet: contract.chainSelectorName.includes("testnet"),
+    });
+
+    if (!network) {
+      throw new Error(`Network not found for chain: ${contract.chainSelectorName}`);
+    }
+
+    const evmClient = new cre.capabilities.EVMClient(network.chainSelector.selector);
+
+    // Initialize result structure
+    const stateData: ContractStateData = {
+      contractAddress: contract.address,
+      chainSelectorName: contract.chainSelectorName,
+      timestamp: new Date().toISOString(),
+      functionResults: [],
+    };
+
+    // Fetch native balance (ETH/MATIC etc.)
+    const nativeBalance = fetchNativeBalance(evmClient, contract.address);
+    stateData.nativeBalance = nativeBalance;
+    runtime.log(`Native balance: ${formatUnits(nativeBalance, 18)} ETH`);
+
+    // If custom ABI and functions are provided, call them
+    if (contract.abi && contract.monitoredFunctions && contract.monitoredFunctions.length > 0) {
+      const functionResults = fetchCustomFunctions(
+        evmClient,
+        contract.address as Address,
+        contract.abi as Abi,
+        contract.monitoredFunctions
+      );
+      stateData.functionResults.push(...functionResults);
+    }
+
+    // Auto-detect contract type and fetch relevant data
+    const detectedData = detectAndFetchProtocolData(
+      runtime,
+      evmClient,
+      contract.address as Address
+    );
+    
+    if (detectedData) {
+      stateData.customState = detectedData;
+    }
+
+    runtime.log(`Successfully fetched state for ${contract.name}`);
+    return stateData;
+
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    runtime.log(`Error fetching contract state: ${msg}`);
+    throw new Error(`Failed to fetch state for ${contract.name}: ${msg}`);
+  }
+}
+
+/*********************************
+ * Native Balance Fetching
+ *********************************/
+
+/**
+ * Fetches native token balance (ETH, MATIC, etc.) for an address.
+ */
+function fetchNativeBalance(
+  evmClient: any,
+  address: string
+): bigint {
+  try {
+    // Use eth_getBalance RPC call
+    const balanceResult = evmClient.read({
+      to: address as Address,
+      data: "0x", // Empty data for balance query
+    }).result();
+
+    return balanceResult.value || 0n;
+  } catch (err) {
+    console.error("Error fetching native balance:", err);
+    return 0n;
+  }
+}
+
+/*********************************
+ * Custom Function Calls
+ *********************************/
+
+/**
+ * Calls specified functions on a contract and decodes results.
+ */
+function fetchCustomFunctions(
+  evmClient: any,
+  contractAddress: Address,
+  abi: Abi,
+  functionNames: string[]
+): { functionName: string; returnValue: any; decoded?: any }[] {
+  const results: { functionName: string; returnValue: any; decoded?: any }[] = [];
+
+  for (const functionName of functionNames) {
+    try {
+      // Find function in ABI
+      const abiFunction = abi.find(
+        (item: any) => item.type === "function" && item.name === functionName
+      );
+
+      if (!abiFunction) {
+        console.warn(`Function ${functionName} not found in ABI`);
+        continue;
+      }
+
+      // Encode function call
+      const callData = encodeFunctionData({
+        abi: [abiFunction],
+        functionName: functionName,
+        args: [], // Assuming view functions with no arguments
+      });
+
+      // Execute call
+      const callResult = evmClient.read({
+        to: contractAddress,
+        data: callData as `0x${string}`,
+      }).result();
+
+      // Decode result
+      const decoded = decodeFunctionResult({
+        abi: [abiFunction],
+        functionName: functionName,
+        data: bytesToHex(callResult.data || new Uint8Array()),
+      });
+
+      results.push({
+        functionName,
+        returnValue: callResult.data,
+        decoded,
+      });
+
+    } catch (err) {
+      console.error(`Error calling function ${functionName}:`, err);
+    }
+  }
+
+  return results;
+}
+
+/*********************************
+ * Protocol-Specific Data Fetching
+ *********************************/
+
+/**
+ * Auto-detects contract type and fetches relevant protocol data.
+ * Attempts to identify if contract is ERC20, Uniswap pair, Aave pool, etc.
+ */
+function detectAndFetchProtocolData(
+  runtime: Runtime<Config>,
+  evmClient: any,
+  contractAddress: Address
+): Record<string, any> | null {
+  const data: Record<string, any> = {};
+
+  // Try ERC20 interface
+  const erc20Data = tryFetchERC20Data(evmClient, contractAddress);
+  if (erc20Data) {
+    runtime.log("Detected ERC20 token");
+    Object.assign(data, { erc20: erc20Data });
+  }
+
+  // Try Uniswap V2 Pair interface
+  const uniswapData = tryFetchUniswapPairData(evmClient, contractAddress);
+  if (uniswapData) {
+    runtime.log("Detected Uniswap V2 Pair");
+    Object.assign(data, { uniswapPair: uniswapData });
+  }
+
+  return Object.keys(data).length > 0 ? data : null;
+}
+
+/**
+ * Attempts to fetch ERC20 token data.
+ */
+function tryFetchERC20Data(
+  evmClient: any,
+  tokenAddress: Address
+): Record<string, any> | null {
+  try {
+    // Try to call balanceOf with zero address
+    const balanceOfData = encodeFunctionData({
+      abi: ERC20_ABI,
+      functionName: "balanceOf",
+      args: ["0x0000000000000000000000000000000000000000" as Address],
+    });
+
+    evmClient.read({
+      to: tokenAddress,
+      data: balanceOfData as `0x${string}`,
+    }).result();
+
+    // If successful, fetch more data
+    const totalSupplyData = encodeFunctionData({
+      abi: ERC20_ABI,
+      functionName: "totalSupply",
+    });
+
+    const totalSupplyResult = evmClient.read({
+      to: tokenAddress,
+      data: totalSupplyData as `0x${string}`,
+    }).result();
+
+    const totalSupply = decodeFunctionResult({
+      abi: ERC20_ABI,
+      functionName: "totalSupply",
+      data: bytesToHex(totalSupplyResult.data || new Uint8Array()),
+    }) as bigint;
+
+    // Fetch decimals
+    const decimalsData = encodeFunctionData({
+      abi: ERC20_ABI,
+      functionName: "decimals",
+    });
+
+    const decimalsResult = evmClient.read({
+      to: tokenAddress,
+      data: decimalsData as `0x${string}`,
+    }).result();
+
+    const decimals = decodeFunctionResult({
+      abi: ERC20_ABI,
+      functionName: "decimals",
+      data: bytesToHex(decimalsResult.data || new Uint8Array()),
+    }) as number;
+
+    return {
+      totalSupply: totalSupply.toString(),
+      totalSupplyFormatted: parseFloat(formatUnits(totalSupply, decimals)),
+      decimals,
+    };
+
+  } catch (err) {
+    return null; // Not an ERC20 or call failed
+  }
+}
+
+/**
+ * Attempts to fetch Uniswap V2 Pair data (for liquidity monitoring).
+ */
+function tryFetchUniswapPairData(
+  evmClient: any,
+  pairAddress: Address
+): Record<string, any> | null {
+  try {
+    // Try to call getReserves
+    const getReservesData = encodeFunctionData({
+      abi: UNISWAP_V2_PAIR_ABI,
+      functionName: "getReserves",
+    });
+
+    const reservesResult = evmClient.read({
+      to: pairAddress,
+      data: getReservesData as `0x${string}`,
+    }).result();
+
+    const reserves = decodeFunctionResult({
+      abi: UNISWAP_V2_PAIR_ABI,
+      functionName: "getReserves",
+      data: bytesToHex(reservesResult.data || new Uint8Array()),
+    }) as any;
+
+    return {
+      reserve0: reserves[0].toString(),
+      reserve1: reserves[1].toString(),
+      lastUpdate: reserves[2],
+    };
+
+  } catch (err) {
+    return null; // Not a Uniswap pair or call failed
+  }
+}
+
+/*********************************
+ * Helper Functions
+ *********************************/
+
+/**
+ * Fetches token balance for a specific address.
+ */
+export function fetchTokenBalance(
+  evmClient: any,
+  tokenAddress: Address,
+  holderAddress: Address
+): bigint {
+  try {
+    const callData = encodeFunctionData({
+      abi: ERC20_ABI,
+      functionName: "balanceOf",
+      args: [holderAddress],
+    });
+
+    const result = evmClient.read({
+      to: tokenAddress,
+      data: callData as `0x${string}`,
+    }).result();
+
+    const balance = decodeFunctionResult({
+      abi: ERC20_ABI,
+      functionName: "balanceOf",
+      data: bytesToHex(result.data || new Uint8Array()),
+    }) as bigint;
+
+    return balance;
+  } catch (err) {
+    console.error("Error fetching token balance:", err);
+    return 0n;
+  }
+}
+
+/**
+ * Batch fetch multiple token balances for gas efficiency.
+ */
+export function batchFetchTokenBalances(
+  evmClient: any,
+  tokenAddresses: Address[],
+  holderAddress: Address
+): Map<Address, bigint> {
+  const balances = new Map<Address, bigint>();
+
+  for (const tokenAddress of tokenAddresses) {
+    const balance = fetchTokenBalance(evmClient, tokenAddress, holderAddress);
+    balances.set(tokenAddress, balance);
+  }
+
+  return balances;
+}
+
+/**
+ * Calculates Total Value Locked (TVL) for a contract.
+ * This is a simplified example - actual TVL calculation varies by protocol.
+ */
+export function calculateTVL(
+  tokenBalances: Map<Address, bigint>,
+  tokenPrices: Map<Address, number>,
+  decimalsMap: Map<Address, number>
+): number {
+  let tvl = 0;
+
+  for (const [tokenAddress, balance] of tokenBalances) {
+    const price = tokenPrices.get(tokenAddress) || 0;
+    const decimals = decimalsMap.get(tokenAddress) || 18;
+    const balanceFormatted = parseFloat(formatUnits(balance, decimals));
+    tvl += balanceFormatted * price;
+  }
+
+  return tvl;
+}

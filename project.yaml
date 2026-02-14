@@ -1,0 +1,37 @@
+# ==========================================================================
+# CRE PROJECT SETTINGS FILE - ChainGuard Sentinel
+# ==========================================================================
+# Project-specific settings for ChainGuard smart contract risk monitoring.
+# Configures DON family, account ownership, and RPC endpoints.
+
+# ==========================================================================
+local-simulation:
+  rpcs:
+    - chain-name: ethereum-testnet-sepolia
+      url: https://0xrpc.io/sep
+    - chain-name: polygon-testnet-amoy
+      url: https://rpc-amoy.polygon.technology
+
+# ==========================================================================
+staging:
+  cre-cli:
+    don-family: "zone-a"
+  account:
+    workflow-owner-address: "(optional) Multi-signature contract address"
+  rpcs:
+    - chain-name: ethereum-testnet-sepolia
+      url: https://0xrpc.io/sep
+    - chain-name: polygon-testnet-amoy
+      url: https://rpc-amoy.polygon.technology
+
+# ==========================================================================
+production:
+  cre-cli:
+    don-family: "zone-a"
+  account:
+    workflow-owner-address: "(optional) Multi-signature contract address"
+  rpcs:
+    - chain-name: ethereum-mainnet
+      url: https://eth.llamarpc.com
+    - chain-name: polygon-mainnet
+      url: https://polygon-rpc.com

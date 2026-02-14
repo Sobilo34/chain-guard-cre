@@ -1,0 +1,30 @@
+{
+  "name": "chainguard-sentinel-workflow",
+  "version": "1.0.0",
+  "description": "AI-powered smart contract risk monitoring using Chainlink Runtime Environment",
+  "main": "dist/main.js",
+  "private": true,
+  "scripts": {
+    "postinstall": "bunx cre-setup"
+  },
+  "keywords": [
+    "chainlink",
+    "cre",
+    "defi",
+    "risk-monitoring",
+    "smart-contracts",
+    "ai"
+  ],
+  "author": "ChainGuard Team",
+  "license": "MIT",
+  "dependencies": {
+    "@chainlink/cre-sdk": "0.0.8-alpha",
+    "viem": "^2.38.3",
+    "zod": "^4.1.12",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/bun": "1.2.21",
+    "@types/uuid": "^9.0.7"
+  }
+}

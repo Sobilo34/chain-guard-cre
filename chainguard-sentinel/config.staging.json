@@ -1,0 +1,37 @@
+{
+  "geminiModel": "gemini-2.0-flash-exp",
+  "cronSchedule": "*/10 * * * *",
+  "monitoredContracts": [
+    {
+      "address": "0x0000000000000000000000000000000000000000",
+      "name": "Staging Test Contract",
+      "chainSelectorName": "ethereum-testnet-sepolia",
+      "riskThresholds": {
+        "depegTolerance": 0.03,
+        "volatilityMax": 0.2,
+        "liquidityDropMax": 0.3
+      },
+      "alertChannels": [
+        "email"
+      ],
+      "priceFeeds": [
+        {
+          "feedAddress": "0x694AA1769357215DE4FAC081bf1f309aDC325306",
+          "pairName": "ETH/USD",
+          "decimals": 8,
+          "heartbeat": 3600
+        }
+      ]
+    }
+  ],
+  "gasLimit": "1000000",
+  "emailConfig": {
+    "from": "ChainGuard Staging <alerts@chainguard.io>",
+    "to": [
+      "staging@example.com"
+    ]
+  },
+  "verboseLogging": false,
+  "maxContractsPerRun": 50,
+  "geminiTimeoutMs": 30000
+}

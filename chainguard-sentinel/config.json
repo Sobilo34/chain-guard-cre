@@ -1,0 +1,48 @@
+{
+  "geminiModel": "gemini-2.0-flash-exp",
+  "cronSchedule": "*/5 * * * *",
+  "monitoredContracts": [
+    {
+      "address": "0x1234567890123456789012345678901234567890",
+      "name": "Example DeFi Protocol",
+      "chainSelectorName": "ethereum-testnet-sepolia",
+      "riskThresholds": {
+        "depegTolerance": 0.02,
+        "volatilityMax": 0.15,
+        "liquidityDropMax": 0.25,
+        "collateralRatioMin": 1.5,
+        "gasPriceMax": 200
+      },
+      "alertChannels": [
+        "email"
+      ],
+      "priceFeeds": [
+        {
+          "feedAddress": "0x694AA1769357215DE4FAC081bf1f309aDC325306",
+          "pairName": "ETH/USD",
+          "decimals": 8,
+          "heartbeat": 3600
+        }
+      ],
+      "ownerAddresses": [
+        "0x0000000000000000000000000000000000000000"
+      ],
+      "metadata": {
+        "description": "Example contract for testing ChainGuard Sentinel",
+        "category": "DeFi",
+        "protocol": "Example Protocol"
+      }
+    }
+  ],
+  "gasLimit": "1000000",
+  "emailConfig": {
+    "from": "ChainGuard <alerts@chainguard.io>",
+    "to": [
+      "admin@example.com"
+    ],
+    "subject": "ChainGuard Risk Alert"
+  },
+  "verboseLogging": true,
+  "maxContractsPerRun": 10,
+  "geminiTimeoutMs": 30000
+}

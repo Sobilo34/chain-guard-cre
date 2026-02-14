@@ -1,0 +1,32 @@
+# ==========================================================================
+# CRE WORKFLOW SETTINGS FILE - ChainGuard Sentinel
+# ==========================================================================
+# Workflow-specific settings for CRE CLI targets.
+# Defines workflow name and artifact paths for different environments.
+
+# ==========================================================================
+local-simulation:
+  user-workflow:
+    workflow-name: "chainguard-sentinel-local"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.json"
+    secrets-path: "../secrets.yaml"
+
+# ==========================================================================
+staging:
+  user-workflow:
+    workflow-name: "chainguard-sentinel-staging"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.staging.json"
+    secrets-path: "../secrets.yaml"
+
+# ==========================================================================
+production:
+  user-workflow:
+    workflow-name: "chainguard-sentinel-production"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.production.json"
+    secrets-path: "../secrets.yaml"

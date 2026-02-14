@@ -1,0 +1,305 @@
+// api-handler.ts
+// Contract management functions for ChainGuard Sentinel
+// Manages dynamic contract additions, removals, and status queries
+
+import {
+  cre,
+  type Runtime,
+  getNetwork,
+} from "@chainlink/cre-sdk";
+import { type Address } from "viem";
+import { z } from "zod";
+import type { Config, MonitoredContract } from "./types";
+import { detectContractType, enrichContractConfig, ContractType } from "./contract-manager";
+
+/*********************************
+ * API Request/Response Schemas
+ *********************************/
+
+const AddContractRequestSchema = z.object({
+  contractAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  contractName: z.string().optional(),
+  chainSelectorName: z.string(),
+  riskThresholds: z.object({
+    depegTolerance: z.number().optional(),
+    volatilityMax: z.number().optional(),
+    liquidityDropMax: z.number().optional(),
+    collateralRatioMin: z.number().optional(),
+    gasPriceMax: z.number().optional(),
+  }).optional(),
+  alertChannels: z.array(z.string()).optional(),
+  priceFeeds: z.array(z.object({
+    feedAddress: z.string(),
+    pairName: z.string(),
+    decimals: z.number(),
+    heartbeat: z.number().optional(),
+  })).optional(),
+});
+
+const RemoveContractRequestSchema = z.object({
+  contractAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  chainSelectorName: z.string(),
+});
+
+const GetContractStatusRequestSchema = z.object({
+  contractAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  chainSelectorName: z.string().optional(),
+});
+
+/*********************************
+ * In-Memory Contract Storage
+ * TODO: Replace with persistent database in production
+ *********************************/
+
+// Simulated database - in production, use Firebase/PostgreSQL/etc
+const contractDatabase: Map<string, MonitoredContract> = new Map();
+
+function generateContractKey(address: Address, chainSelectorName: string): string {
+  return `${chainSelectorName}:${address.toLowerCase()}`;
+}
+
+/*********************************
+ * API Handlers
+ *********************************/
+
+/**
+ * Add a new contract for monitoring
+ */
+export function handleAddContract(
+  runtime: Runtime<Config>,
+  payload: HTTPPayload
+): { statusCode: number; body: string } {
+  try {
+    // Parse request body
+    const bodyText = Buffer.from(payload.body || new Uint8Array()).toString('utf-8');
+    const requestData = JSON.parse(bodyText);
+    
+    // Validate request
+    const validated = AddContractRequestSchema.parse(requestData);
+    
+    const contractAddress = validated.contractAddress as Address;
+    const chainSelectorName = validated.chainSelectorName;
+    
+    runtime.log(`Adding contract: ${contractAddress} on ${chainSelectorName}`);
+
+    // Get network and create EVM client
+    const network = getNetwork({
+      chainFamily: "evm",
+      chainSelectorName,
+      isTestnet: chainSelectorName.includes("testnet"),
+    });
+
+    if (!network) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({
+          success: false,
+          error: `Unknown chain: ${chainSelectorName}`,
+        }),
+      };
+    }
+
+    const evmClient = new cre.capabilities.EVMClient(network.chainSelector.selector);
+
+    // Detect and enrich contract configuration
+    const enrichedConfig = enrichContractConfig(
+      runtime,
+      evmClient,
+      contractAddress,
+      chainSelectorName,
+      validated.contractName
+    );
+
+    // Build complete contract configuration
+    const newContract: MonitoredContract = {
+      address: contractAddress,
+      name: enrichedConfig.name!,
+      chainSelectorName,
+      riskThresholds: validated.riskThresholds || {
+        depegTolerance: 0.02,
+        volatilityMax: 0.15,
+        liquidityDropMax: 0.25,
+        collateralRatioMin: 1.5,
+      },
+      alertChannels: (validated.alertChannels || ["email"]) as Array<"email" | "slack" | "telegram" | "discord" | "onchain">,
+      priceFeeds: validated.priceFeeds,
+      metadata: enrichedConfig.metadata,
+    };
+
+    // Store in database
+    const key = generateContractKey(contractAddress, chainSelectorName);
+    contractDatabase.set(key, newContract);
+
+    runtime.log(`Contract added successfully: ${key}`);
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        success: true,
+        contract: newContract,
+        message: "Contract added for monitoring",
+      }),
+    };
+
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    runtime.log(`Error adding contract: ${error}`);
+
+    return {
+      statusCode: 400,
+      body: JSON.stringify({
+        success: false,
+        error,
+      }),
+    };
+  }
+}
+
+/**
+ * Remove a contract from monitoring
+ */
+export function handleRemoveContract(
+  runtime: Runtime<Config>,
+  payload: HTTPPayload
+): { statusCode: number; body: string } {
+  try {
+    const bodyText = Buffer.from(payload.body || new Uint8Array()).toString('utf-8');
+    const requestData = JSON.parse(bodyText);
+    
+    const validated = RemoveContractRequestSchema.parse(requestData);
+    
+    const contractAddress = validated.contractAddress as Address;
+    const chainSelectorName = validated.chainSelectorName;
+    const key = generateContractKey(contractAddress, chainSelectorName);
+
+    const removed = contractDatabase.delete(key);
+
+    if (removed) {
+      runtime.log(`Contract removed: ${key}`);
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: true,
+          message: "Contract removed from monitoring",
+        }),
+      };
+    } else {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({
+          success: false,
+          error: "Contract not found",
+        }),
+      };
+    }
+
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    return {
+      statusCode: 400,
+      body: JSON.stringify({
+        success: false,
+        error,
+      }),
+    };
+  }
+}
+
+/**
+ * Get status of a specific contract or all contracts
+ */
+export function handleGetContractStatus(
+  runtime: Runtime<Config>,
+  payload: HTTPPayload
+): { statusCode: number; body: string } {
+  try {
+    const queryParams = payload.queryParams || {};
+    
+    // If specific contract requested
+    if (queryParams.contractAddress) {
+      const validated = GetContractStatusRequestSchema.parse(queryParams);
+      const contractAddress = validated.contractAddress as Address;
+
+      if (validated.chainSelectorName) {
+        // Get specific contract
+        const key = generateContractKey(contractAddress, validated.chainSelectorName);
+        const contract = contractDatabase.get(key);
+
+        if (contract) {
+          return {
+            statusCode: 200,
+            body: JSON.stringify({
+              success: true,
+              contract,
+            }),
+          };
+        } else {
+          return {
+            statusCode: 404,
+            body: JSON.stringify({
+              success: false,
+              error: "Contract not found",
+            }),
+          };
+        }
+      } else {
+        // Search across all chains
+        const matches: MonitoredContract[] = [];
+        for (const [key, contract] of contractDatabase.entries()) {
+          if (contract.address.toLowerCase() === contractAddress.toLowerCase()) {
+            matches.push(contract);
+          }
+        }
+
+        return {
+          statusCode: 200,
+          body: JSON.stringify({
+            success: true,
+            contracts: matches,
+            count: matches.length,
+          }),
+        };
+      }
+    }
+
+    // Return all contracts
+    const allContracts = Array.from(contractDatabase.values());
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        success: true,
+        contracts: allContracts,
+        count: allContracts.length,
+      }),
+    };
+
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    return {
+      statusCode: 400,
+      body: JSON.stringify({
+        success: false,
+        error,
+      }),
+    };
+  }
+}
+
+/**
+ * Get list of all monitored contracts
+ */
+export function getAllMonitoredContracts(): MonitoredContract[] {
+  return Array.from(contractDatabase.values());
+}
+
+/**
+ * Initialize database from config file
+ */
+export function initializeFromConfig(config: Config): void {
+  if (config.monitoredContracts && config.monitoredContracts.length > 0) {
+    for (const contract of config.monitoredContracts) {
+      const key = generateContractKey(contract.address as Address, contract.chainSelectorName);
+      contractDatabase.set(key, contract);
+    }
+  }
+}

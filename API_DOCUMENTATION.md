@@ -20,7 +20,7 @@ https://your-cre-workflow-endpoint.chainlink.com
 
 **POST** `/add`
 
-Add a new smart contract for real-time monitoring.
+Add a new smart contract for real-time monitoring of the smart-contract
 
 #### Request Body
 

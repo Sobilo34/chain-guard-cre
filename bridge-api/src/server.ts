@@ -5,6 +5,9 @@
 
 import express, { Application } from 'express';
 import cors from 'cors';
+import path from 'path';
+import swaggerUi from 'swagger-ui-express';
+import YAML from 'yamljs';
 import { config, validateConfig } from './config';
 import { errorHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/logger';
@@ -24,6 +27,10 @@ validateConfig();
 
 // Initialize Express app
 const app: Application = express();
+
+// Load OpenAPI specification
+const openApiPath = path.join(__dirname, '..', 'docs', 'openapi.yaml');
+const swaggerDocument = YAML.load(openApiPath);
 
 // ============================================================================
 // Middleware
@@ -67,134 +74,32 @@ app.use('/api/scan', scanRoutes);
 app.use('/cre', creRoutes);
 
 // ============================================================================
-// API Documentation Redirect
+// API Documentation - Interactive Swagger UI
 // ============================================================================
 
-app.get('/docs', (_req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>ChainGuard API Documentation</title>
-      <meta charset="UTF-8">
-      <style>
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          max-width: 800px;
-          margin: 50px auto;
-          padding: 20px;
-          line-height: 1.6;
-        }
-        h1 { color: #2c3e50; }
-        .button {
-          display: inline-block;
-          padding: 12px 24px;
-          margin: 10px 10px 10px 0;
-          background: #3498db;
-          color: white;
-          text-decoration: none;
-          border-radius: 5px;
-        }
-        .button:hover { background: #2980b9; }
-        .section {
-          background: #f8f9fa;
-          padding: 20px;
-          margin: 20px 0;
-          border-radius: 5px;
-        }
-        code {
-          background: #e9ecef;
-          padding: 2px 6px;
-          border-radius: 3px;
-        }
-      </style>
-    </head>
-    <body>
-      <h1>🔐 ChainGuard Bridge API</h1>
-      <p>REST API bridge for interacting with ChainGuard CRE workflows.</p>
-      
-      <div class="section">
-        <h2>📚 Documentation</h2>
-        <p>View the complete OpenAPI specification:</p>
-        <a href="/openapi.yaml" class="button">Download OpenAPI Spec</a>
-        <p style="margin-top: 20px;">
-          To view the interactive documentation:
-        </p>
-        <ol>
-          <li>Copy the OpenAPI spec URL: <code>http://localhost:${config.port}/openapi.yaml</code></li>
-          <li>Visit <a href="https://editor.swagger.io" target="_blank">Swagger Editor</a></li>
-          <li>Paste the URL or import the file</li>
-        </ol>
-      </div>
-      
-      <div class="section">
-        <h2>🔗 Quick Links</h2>
-        <ul>
-          <li><strong>Health Check:</strong> <a href="/health">/health</a></li>
-          <li><strong>API Base:</strong> <code>/api/*</code></li>
-          <li><strong>CRE Endpoints:</strong> <code>/cre/*</code></li>
-        </ul>
-      </div>
-      
-      <div class="section">
-        <h2>📡 Request Types</h2>
-        <h3>Normal HTTP Requests</h3>
-        <p>Standard REST endpoints for contract monitoring and management:</p>
-        <ul>
-          <li><code>GET /api/contracts</code> - List monitored contracts</li>
-          <li><code>POST /api/scan</code> - Trigger risk scan</li>
-          <li><code>GET /api/alerts</code> - Get alert history</li>
-        </ul>
-        
-        <h3>CRE HTTP Triggers</h3>
-        <p>Simulate Chainlink Runtime Environment workflows:</p>
-        <ul>
-          <li><code>POST /cre/trigger</code> - Normal HTTP trigger</li>
-          <li><code>POST /cre/confidential/trigger</code> - Confidential trigger (experimental)</li>
-          <li><code>POST /cre/report</code> - Submit CRE reports</li>
-        </ul>
-      </div>
-      
-      <div class="section">
-        <h2>🔐 CRE Confidential Requests</h2>
-        <p><strong>Experimental Feature - Simulation Only</strong></p>
-        <p>Confidential HTTP requests execute in secure enclaves (TEE) and support:</p>
-        <ul>
-          <li>Secret injection via templates: <code>{{.secretName}}</code></li>
-          <li>Response encryption with AES-256-GCM</li>
-          <li>Isolated execution environment</li>
-        </ul>
-        <p><em>Note: Not available in deployed workflows yet.</em></p>
-      </div>
-      
-      <div class="section">
-        <h2>📖 Example Request</h2>
-        <pre style="background: white; padding: 15px; border-radius: 5px; overflow-x: auto;">
-<strong># Trigger a risk scan</strong>
-curl -X POST http://localhost:${config.port}/api/scan \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "addresses": ["0x1234567890123456789012345678901234567890"],
-    "priority": "high"
-  }'
+// Swagger UI with custom configuration
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'ChainGuard API Documentation',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    filter: true,
+    tryItOutEnabled: true,
+    defaultModelsExpandDepth: 1,
+    defaultModelExpandDepth: 2,
+    docExpansion: 'list',
+  },
+}));
 
-<strong># CRE HTTP Trigger (Normal)</strong>
-curl -X POST http://localhost:${config.port}/cre/trigger \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "action": "scan",
-    "contractAddress": "0x1234567890123456789012345678901234567890"
-  }'
-        </pre>
-      </div>
-    </body>
-    </html>
-  `);
+// Serve OpenAPI spec directly
+app.get('/openapi.yaml', (_req, res) => {
+  res.sendFile(openApiPath);
 });
 
-// Serve OpenAPI spec
-app.get('/openapi.yaml', (_req, res) => {
-  res.sendFile('/docs/openapi.yaml', { root: __dirname + '/..' });
+// Redirect root to docs
+app.get('/', (_req, res) => {
+  res.redirect('/docs');
 });
 
 // ============================================================================

@@ -50,19 +50,19 @@ Add a new smart contract for real-time monitoring of the smart-contract
 
 #### Required Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `contractAddress` | string | Valid Ethereum address (0x...) |
+| Field               | Type   | Description                             |
+| ------------------- | ------ | --------------------------------------- |
+| `contractAddress`   | string | Valid Ethereum address (0x...)          |
 | `chainSelectorName` | string | Chain identifier (see supported chains) |
 
 #### Optional Fields
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `contractName` | string | Auto-generated | Human-readable name |
-| `riskThresholds` | object | Default values | Risk tolerance settings |
-| `alertChannels` | array | `["email"]` | Notification channels |
-| `priceFeeds` | array | `[]` | Chainlink price feeds to monitor |
+| Field            | Type   | Default        | Description                      |
+| ---------------- | ------ | -------------- | -------------------------------- |
+| `contractName`   | string | Auto-generated | Human-readable name              |
+| `riskThresholds` | object | Default values | Risk tolerance settings          |
+| `alertChannels`  | array  | `["email"]`    | Notification channels            |
+| `priceFeeds`     | array  | `[]`           | Chainlink price feeds to monitor |
 
 #### Response
 
@@ -87,6 +87,7 @@ Add a new smart contract for real-time monitoring of the smart-contract
 #### Contract Type Detection
 
 The system automatically detects:
+
 - ✅ **Normal contracts**
 - ✅ **UUPS proxies** (EIP-1822)
 - ✅ **Transparent proxies** (EIP-1967)
@@ -131,10 +132,10 @@ Get monitoring status for a specific contract.
 
 #### Query Parameters
 
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `contractAddress` | Yes | Contract address to query |
-| `chainSelectorName` | No | Specific chain (omit to search all chains) |
+| Parameter           | Required | Description                                |
+| ------------------- | -------- | ------------------------------------------ |
+| `contractAddress`   | Yes      | Contract address to query                  |
+| `chainSelectorName` | No       | Specific chain (omit to search all chains) |
 
 #### Response (Single Contract)
 
@@ -208,17 +209,17 @@ Get all contracts currently being monitored.
 
 ### Testnets
 
-| Chain | `chainSelectorName` | RPC Required |
-|-------|---------------------|--------------|
-| Ethereum Sepolia | `ethereum-testnet-sepolia` | ✅ |
-| Polygon Amoy | `polygon-testnet-amoy` | ✅ |
+| Chain            | `chainSelectorName`        | RPC Required |
+| ---------------- | -------------------------- | ------------ |
+| Ethereum Sepolia | `ethereum-testnet-sepolia` | ✅           |
+| Polygon Amoy     | `polygon-testnet-amoy`     | ✅           |
 
 ### Mainnets
 
-| Chain | `chainSelectorName` | RPC Required |
-|-------|---------------------|--------------|
-| Ethereum | `ethereum-mainnet` | ✅ |
-| Polygon | `polygon-mainnet` | ✅ |
+| Chain    | `chainSelectorName` | RPC Required |
+| -------- | ------------------- | ------------ |
+| Ethereum | `ethereum-mainnet`  | ✅           |
+| Polygon  | `polygon-mainnet`   | ✅           |
 
 ---
 
@@ -233,7 +234,7 @@ const CHAINGUARD_API = process.env.NEXT_PUBLIC_CHAINGUARD_ENDPOINT;
 export async function addContract(
   contractAddress: string,
   chain: string,
-  name?: string
+  name?: string,
 ) {
   const response = await fetch(`${CHAINGUARD_API}/add`, {
     method: "POST",
@@ -249,10 +250,7 @@ export async function addContract(
   return response.json();
 }
 
-export async function removeContract(
-  contractAddress: string,
-  chain: string
-) {
+export async function removeContract(contractAddress: string, chain: string) {
   const response = await fetch(`${CHAINGUARD_API}/remove`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -267,14 +265,12 @@ export async function removeContract(
 
 export async function getContractStatus(
   contractAddress: string,
-  chain?: string
+  chain?: string,
 ) {
   const params = new URLSearchParams({ contractAddress });
   if (chain) params.append("chainSelectorName", chain);
 
-  const response = await fetch(
-    `${CHAINGUARD_API}/status?${params}`
-  );
+  const response = await fetch(`${CHAINGUARD_API}/status?${params}`);
 
   return response.json();
 }
@@ -298,7 +294,7 @@ export default function ContractsPage() {
     const result = await addContract(
       contractAddress,
       selectedChain,
-      contractName
+      contractName,
     );
 
     if (result.success) {
@@ -335,13 +331,13 @@ All endpoints return consistent error format:
 
 ### Common Errors
 
-| Status Code | Error | Solution |
-|-------------|-------|----------|
-| 400 | Invalid contract address | Check address format (0x...) |
-| 400 | Unknown chain | Use supported `chainSelectorName` |
-| 404 | Contract not found | Contract not in monitoring system |
-| 404 | Endpoint not found | Check API path |
-| 500 | Internal server error | Contact support |
+| Status Code | Error                    | Solution                          |
+| ----------- | ------------------------ | --------------------------------- |
+| 400         | Invalid contract address | Check address format (0x...)      |
+| 400         | Unknown chain            | Use supported `chainSelectorName` |
+| 404         | Contract not found       | Contract not in monitoring system |
+| 404         | Endpoint not found       | Check API path                    |
+| 500         | Internal server error    | Contact support                   |
 
 ---
 
@@ -375,6 +371,7 @@ All endpoints return consistent error format:
 ## Support
 
 For issues or questions:
+
 - GitHub Issues: [Your Repo]
 - Discord: [Chainlink Discord](https://discord.gg/chainlink)
 - Docs: [Chainlink CRE Docs](https://docs.chain.link/cre)

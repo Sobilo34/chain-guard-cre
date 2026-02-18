@@ -113,7 +113,9 @@ Edit `config.json` to add contracts to monitor:
 ### Local Simulation
 
 ```bash
-cre workflow run local-simulation
+cd /home/bilal/bilal_projects/Hackathons/chainlink/chain-guard-cre && cre workflow simulate ./chainguard-sentinel --target local-simulation
+
+node src/server.js
 ```
 
 ### Staging Deployment

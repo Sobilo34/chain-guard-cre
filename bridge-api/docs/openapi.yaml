@@ -1,30 +1,10 @@
 openapi: 3.0.3
 info:
   title: ChainGuard Bridge API
-  description: |
-    REST API bridge for interacting with ChainGuard CRE workflows.
-    
-    ## Request Types
-    
-    ### Normal HTTP Requests
-    Standard HTTP requests that interact with the CRE workflow in simulation mode.
-    These requests follow typical REST patterns and are suitable for:
-    - Monitoring contract status
-    - Managing contract configurations
-    - Triggering workflow simulations
-    
-    ### Confidential HTTP Requests (Experimental)
-    CRE confidential requests execute in secure enclaves and support:
-    - Secret injection via templates: `{{.secretName}}`
-    - Response encryption with AES-256-GCM
-    - Simulation-only (not available in deployed workflows)
-    
-    Note: Confidential endpoints are prefixed with `/cre/confidential/`
-    
   version: 1.0.0
   contact:
-    name: ChainGuard Team
-    email: support@chainguard.example.com
+    name: Team ChainGuard(SOBIL)
+    email: bilalsolih60@gmail.com
   license:
     name: MIT
 
@@ -32,29 +12,32 @@ servers:
   - url: http://localhost:3001
     description: Local development server
   - url: https://api.chainguard.example.com
-    description: Production server
+    description: Production server (not deployed yet)
 
 tags:
   - name: health
-    description: Health check endpoints
+    description: 🏥 Health check endpoints - Verify API server status
   - name: contracts
-    description: Smart contract monitoring and management
+    description: 📝 Smart contract monitoring (Normal HTTP) - Add, update, delete monitored contracts
   - name: alerts
-    description: Alert management and history
+    description: 🚨 Alert management (Normal HTTP) - Retrieve historical alerts and notifications
   - name: scan
-    description: On-demand contract scanning
+    description: 🔍 On-demand scanning (Normal HTTP) - Trigger immediate risk assessments
   - name: cre-normal
-    description: CRE Normal HTTP triggers (standard requests)
+    description: ⚡ CRE Normal HTTP - Standard workflow triggers and report submission
   - name: cre-confidential
-    description: CRE Confidential HTTP triggers (experimental, simulation only)
+    description: 🔐 CRE Confidential HTTP (Experimental) - Secure enclave execution with secret injection
 
 paths:
   /health:
     get:
       tags:
         - health
-      summary: Health check
-      description: Check if the API server is running
+      summary: 🏥 Health check
+      description: |
+        Check if the API server is running.
+        
+        **CRE Pattern:** N/A (Standard REST endpoint)
       operationId: getHealth
       responses:
         '200':
@@ -72,8 +55,14 @@ paths:
     get:
       tags:
         - contracts
-      summary: List monitored contracts
-      description: Retrieve all contracts currently being monitored by ChainGuard
+      summary: 📋 List monitored contracts
+      description: |
+        Retrieve all contracts currently being monitored by ChainGuard.
+        
+        **CRE Pattern:** Normal HTTP (Standard REST)
+        - ✅ Standard CRUD operation
+        - ✅ No secrets required
+        - ✅ Works in simulation and production
       operationId: listContracts
       responses:
         '200':
@@ -93,8 +82,14 @@ paths:
     post:
       tags:
         - contracts
-      summary: Add new contract to monitor
-      description: Register a new smart contract for monitoring
+      summary: ➕ Add new contract to monitor
+      description: |
+        Register a new smart contract for monitoring.
+        
+        **CRE Pattern:** Normal HTTP (Standard REST)
+        - ✅ Standard CRUD operation
+        - ✅ Stores contract configuration
+        - 🎯 Best for: Adding contracts to monitoring list
       operationId: addContract
       requestBody:
         required: true
@@ -118,8 +113,13 @@ paths:
     get:
       tags:
         - contracts
-      summary: Get contract details
-      description: Retrieve detailed information about a specific monitored contract
+      summary: 🔎 Get contract details
+      description: |
+        Retrieve detailed information about a specific monitored contract.
+        
+        **CRE Pattern:** Normal HTTP (Standard REST)
+        - ✅ Read-only operation
+        - ✅ Returns contract configuration and status
       operationId: getContract
       parameters:
         - $ref: '#/components/parameters/ContractAddress'
@@ -138,8 +138,13 @@ paths:
     put:
       tags:
         - contracts
-      summary: Update contract configuration
-      description: Update risk thresholds or monitoring parameters for a contract
+      summary: ✏️ Update contract configuration
+      description: |
+        Update risk thresholds or monitoring parameters for a contract.
+        
+        **CRE Pattern:** Normal HTTP (Standard REST)
+        - ✅ Standard update operation
+        - 🎯 Best for: Adjusting risk thresholds, alert settings
       operationId: updateContract
       parameters:
         - $ref: '#/components/parameters/ContractAddress'
@@ -166,8 +171,13 @@ paths:
     delete:
       tags:
         - contracts
-      summary: Remove contract from monitoring
-      description: Stop monitoring a specific smart contract
+      summary: 🗑️ Remove contract from monitoring
+      description: |
+        Stop monitoring a specific smart contract.
+        
+        **CRE Pattern:** Normal HTTP (Standard REST)
+        - ✅ Standard delete operation
+        - ⚠️ Removes contract from monitoring list
       operationId: deleteContract
       parameters:
         - $ref: '#/components/parameters/ContractAddress'
@@ -187,8 +197,13 @@ paths:
     get:
       tags:
         - contracts
-      summary: Get contract risk status
-      description: Get the current risk assessment and monitoring status for a contract
+      summary: 📊 Get contract risk status
+      description: |
+        Get the current risk assessment and monitoring status for a contract.
+        
+        **CRE Pattern:** Normal HTTP (Standard REST)
+        - ✅ Returns real-time risk metrics
+        - ✅ Includes latest scan results
       operationId: getContractStatus
       parameters:
         - $ref: '#/components/parameters/ContractAddress'
@@ -208,8 +223,14 @@ paths:
     get:
       tags:
         - alerts
-      summary: Get alert history
-      description: Retrieve historical alerts with optional filtering
+      summary: 🚨 Get alert history
+      description: |
+        Retrieve historical alerts with optional filtering.
+        
+        **CRE Pattern:** Normal HTTP (Standard REST)
+        - ✅ Supports pagination and filtering
+        - ✅ Filter by address, severity, time range
+        - 🎯 Best for: Alert dashboards, notifications
       operationId: getAlerts
       parameters:
         - name: address

@@ -9,7 +9,7 @@ info:
     name: MIT
 
 servers:
-  - url: http://localhost:3001
+  - url: http://localhost:4100
     description: Local development server
   - url: https://api.chainguard.example.com
     description: Production server (not deployed yet)

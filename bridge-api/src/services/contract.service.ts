@@ -53,7 +53,11 @@ export class ContractService {
       address,
       name: request.name,
       protocol: request.protocol,
-      chain: request.chain || 'ethereum',
+      chain: request.chain || request.chainSelectorName || 'ethereum-testnet-sepolia',
+      chainSelectorName: request.chainSelectorName,
+      chainName: request.chainName,
+      rpcUrl: request.rpcUrl,
+      chainId: request.chainId,
       riskThresholds: request.riskThresholds || {
         volatility: 0.15,
         liquidity: 0.20,
@@ -61,7 +65,7 @@ export class ContractService {
         overall: 0.30,
       },
       priceFeeds: request.priceFeeds || [],
-      alertChannels: request.alertChannels || ['email'],
+      alertChannels: request.alertChannels?.length ? request.alertChannels : ['email'],
       addedAt: new Date(),
     };
 

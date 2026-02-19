@@ -13,6 +13,10 @@ export interface MonitoredContract {
   name: string;
   protocol: string;
   chain?: string;
+  chainSelectorName?: string;
+  chainName?: string;
+  rpcUrl?: string;
+  chainId?: number;
   riskThresholds: RiskThresholds;
   priceFeeds?: PriceFeed[];
   alertChannels?: AlertChannel[];
@@ -84,6 +88,10 @@ export interface AddContractRequest {
   name: string;
   protocol: string;
   chain?: string;
+  chainSelectorName?: string;
+  chainName?: string;
+  rpcUrl?: string;
+  chainId?: number;
   riskThresholds?: RiskThresholds;
   priceFeeds?: PriceFeed[];
   alertChannels?: AlertChannel[];

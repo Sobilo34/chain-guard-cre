@@ -4,6 +4,7 @@
 
 import { Request, Response } from 'express';
 import { contractService } from '../services/contract.service';
+import { creWorkflowService } from '../services/creWorkflow.service';
 import { asyncHandler, notFound } from '../middleware/errorHandler';
 import { ApiSuccessResponse } from '../types';
 
@@ -21,6 +22,19 @@ export const contractControllers = {
    */
   addContract: asyncHandler(async (req: Request, res: Response) => {
     const contract = await contractService.addContract(req.body);
+
+    await creWorkflowService.executeNormalWorkflow({
+      action: 'monitor',
+      contractAddress: contract.address,
+      parameters: {
+        chainSelectorName: contract.chainSelectorName || contract.chain,
+        chainName: contract.chainName,
+        rpcUrl: contract.rpcUrl,
+        contractName: contract.name,
+        protocol: contract.protocol,
+        alertChannels: contract.alertChannels || ['email'],
+      },
+    });
     
     const response: ApiSuccessResponse = {
       success: true,
@@ -49,6 +63,19 @@ export const contractControllers = {
    */
   updateContract: asyncHandler(async (req: Request, res: Response) => {
     const contract = await contractService.updateContract(req.params.address, req.body);
+
+    await creWorkflowService.executeNormalWorkflow({
+      action: 'monitor',
+      contractAddress: contract.address,
+      parameters: {
+        chainSelectorName: contract.chainSelectorName || contract.chain,
+        chainName: contract.chainName,
+        rpcUrl: contract.rpcUrl,
+        contractName: contract.name,
+        protocol: contract.protocol,
+        alertChannels: contract.alertChannels || ['email'],
+      },
+    });
     
     const response: ApiSuccessResponse = {
       success: true,
@@ -131,7 +158,8 @@ export const contractControllers = {
         tvl: status?.metrics?.tvl ? `$${(status.metrics.tvl / 1000000).toFixed(1)}M` : '$0.0M',
         riskLevel: (status?.riskLevel || 'LOW').toLowerCase() as 'low' | 'medium' | 'high',
         volatility: status?.metrics?.volatility ? `${(status.metrics.volatility * 100).toFixed(1)}%` : '0.0%',
-        chain: c.chain || 'ethereum',
+        chain: c.chain || 'ethereum-testnet-sepolia',
+        chainSelectorName: c.chainSelectorName || c.chain || 'ethereum-testnet-sepolia',
         status: status?.riskLevel || 'LOW',
         lastUpdate: status?.lastChecked ? status.lastChecked.toISOString() : new Date().toISOString()
       };

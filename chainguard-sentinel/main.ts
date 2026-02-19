@@ -16,7 +16,7 @@ import { buildMarketDataSnapshot } from "./chainlink-feeds";
 import { analyzeRiskWithGemini } from "./gemini";
 import { evaluateRisk, generateRiskSummary, generateDetailedReasoning } from "./risk-evaluator";
 import { sendAlerts } from "./notifications";
-import { 
+import {
   getAllMonitoredContracts,
   initializeFromConfig,
 } from "./api-handler";
@@ -114,7 +114,7 @@ function buildAlertPayload(
   executionId: string
 ): AlertPayload {
   let riskLevel = assessment.aiAnalysis.riskLevel;
-  
+
   if (assessment.overallRiskScore >= 80) riskLevel = "CRITICAL";
   else if (assessment.overallRiskScore >= 60) riskLevel = "HIGH";
   else if (assessment.overallRiskScore >= 40) riskLevel = "MEDIUM";
@@ -133,7 +133,11 @@ function buildAlertPayload(
     riskType: assessment.aiAnalysis.riskType,
     riskScore: assessment.overallRiskScore,
     summary,
-    reasoning,
+    reasoning: assessment.aiAnalysis.reasoning || reasoning,
+    cause: assessment.aiAnalysis.cause || "Market Anomaly",
+    consequences: assessment.aiAnalysis.consequences || "Potential loss of funds or depeg",
+    nextSteps: assessment.aiAnalysis.nextSteps || assessment.aiAnalysis.suggestedActions || [],
+    mitigationStrategy: assessment.aiAnalysis.mitigationStrategy,
     triggeredMetrics: assessment.thresholdViolations.map((v: any) => ({
       name: v.type,
       currentValue: v.currentValue,
@@ -166,7 +170,7 @@ const initWorkflow = (config: Config) => {
   return [
     handler(
       cron.trigger({
-        schedule: config.cronSchedule ?? "*/5 * * * *",
+        schedule: config.cronSchedule ?? "*/15 * * * *",
       }),
       onCronTrigger
     ),

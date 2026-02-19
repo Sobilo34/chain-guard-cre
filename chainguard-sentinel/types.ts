@@ -28,19 +28,19 @@ export type AlertChannel = z.infer<typeof AlertChannelSchema>;
 export const RiskThresholdsSchema = z.object({
   // Maximum allowed price deviation for stablecoins (e.g., 0.02 = 2%)
   depegTolerance: z.number().min(0).max(1).optional(),
-  
+
   // Maximum 24-hour volatility (e.g., 0.10 = 10%)
   volatilityMax: z.number().min(0).max(10).optional(),
-  
+
   // Maximum liquidity drop percentage (e.g., 0.20 = 20%)
   liquidityDropMax: z.number().min(0).max(1).optional(),
-  
+
   // Minimum collateralization ratio (e.g., 1.5 = 150%)
   collateralRatioMin: z.number().min(0).optional(),
-  
+
   // Maximum gas price threshold in Gwei for transaction alerts
   gasPriceMax: z.number().min(0).optional(),
-  
+
   // Custom threshold for protocol-specific metrics
   customThreshold: z.number().optional(),
 });
@@ -53,13 +53,13 @@ export type RiskThresholds = z.infer<typeof RiskThresholdsSchema>;
 export const PriceFeedConfigSchema = z.object({
   // Address of the Chainlink Price Feed aggregator
   feedAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/u),
-  
+
   // Asset pair name (e.g., "ETH/USD", "USDC/USD")
   pairName: z.string(),
-  
+
   // Expected number of decimals in the feed
   decimals: z.number().int().min(0).max(18),
-  
+
   // Optional: Heartbeat interval in seconds (how often feed updates)
   heartbeat: z.number().int().min(0).optional(),
 });
@@ -72,31 +72,31 @@ export type PriceFeedConfig = z.infer<typeof PriceFeedConfigSchema>;
 export const MonitoredContractSchema = z.object({
   // Contract address to monitor
   address: z.string().regex(/^0x[a-fA-F0-9]{40}$/u, "Must be valid Ethereum address"),
-  
+
   // User-friendly name for the contract
   name: z.string().min(1),
-  
+
   // Chain selector name (e.g., "ethereum-testnet-sepolia")
   chainSelectorName: z.string().min(1),
-  
+
   // Risk thresholds specific to this contract
   riskThresholds: RiskThresholdsSchema,
-  
+
   // Alert channels to use for this contract
   alertChannels: z.array(AlertChannelSchema).min(1),
-  
+
   // Optional: Specific price feeds to monitor for this contract
   priceFeeds: z.array(PriceFeedConfigSchema).optional(),
-  
+
   // Optional: Contract ABI for reading specific functions
   abi: z.array(z.any()).optional(),
-  
+
   // Optional: Specific functions to call for state reading
   monitoredFunctions: z.array(z.string()).optional(),
-  
+
   // Optional: Owner/admin addresses to notify
   ownerAddresses: z.array(z.string().regex(/^0x[a-fA-F0-9]{40}$/u)).optional(),
-  
+
   // Optional: Custom metadata for the contract
   metadata: z.record(z.string(), z.any()).optional(),
 });
@@ -122,25 +122,25 @@ export type EmailConfig = z.infer<typeof EmailConfigSchema>;
 export const configSchema = z.object({
   // Gemini AI model to use for risk analysis
   geminiModel: z.string().optional(),
-  
+
   // Cron schedule for monitoring (e.g., "*/5 * * * *" = every 5 minutes)
   cronSchedule: z.string().optional(),
-  
+
   // List of contracts to monitor
   monitoredContracts: z.array(MonitoredContractSchema).min(1),
-  
+
   // Gas limit for EVM transactions
   gasLimit: z.string().regex(/^\d+$/).optional(),
-  
+
   // Optional: Email notification settings
   emailConfig: EmailConfigSchema.optional(),
-  
+
   // Optional: Enable verbose logging
   verboseLogging: z.boolean().optional(),
-  
+
   // Optional: Maximum number of contracts to process per run
   maxContractsPerRun: z.number().int().min(1).max(100).optional(),
-  
+
   // Optional: Timeout for Gemini API calls in milliseconds
   geminiTimeoutMs: z.number().int().min(1000).optional(),
 }).passthrough();
@@ -186,29 +186,29 @@ export interface MarketDataSnapshot {
   timestamp: string;
   contractAddress: string;
   chainSelectorName: string;
-  
+
   // Price data
   currentPrice?: number;
   priceChange24h?: number;
   priceDeviationFromPeg?: number;
-  
+
   // Volatility metrics
   volatility24h?: number;
   volatility7d?: number;
-  
+
   // Liquidity data
   totalLiquidity?: number;
   liquidityChange24h?: number;
-  
+
   // Contract-specific metrics
   totalValueLocked?: number;
   collateralRatio?: number;
   reserveRatio?: number;
-  
+
   // Gas metrics
   currentGasPrice?: number;
   averageGasPrice24h?: number;
-  
+
   // Custom metrics
   customMetrics?: Record<string, number>;
 }
@@ -221,9 +221,13 @@ export const GeminiRiskResponseSchema = z.object({
   riskType: RiskTypeSchema,
   confidence: z.number().int().min(0).max(10000),
   reasoning: z.string(),
+  cause: z.string(),
+  consequences: z.string(),
+  nextSteps: z.array(z.string()),
   suggestedActions: z.array(z.string()),
   affectedMetrics: z.array(z.string()).optional(),
   estimatedImpact: z.string().optional(),
+  mitigationStrategy: z.string().optional(),
 });
 
 export type GeminiRiskResponse = z.infer<typeof GeminiRiskResponseSchema>;
@@ -236,13 +240,13 @@ export interface RiskAssessment {
   contractName: string;
   chainSelectorName: string;
   timestamp: string;
-  
+
   // Market data used for assessment
   marketData: MarketDataSnapshot;
-  
+
   // AI-generated risk analysis
   aiAnalysis: GeminiRiskResponse;
-  
+
   // Threshold violations detected
   thresholdViolations: {
     type: keyof RiskThresholds;
@@ -250,10 +254,10 @@ export interface RiskAssessment {
     thresholdValue: number;
     severity: RiskLevel;
   }[];
-  
+
   // Overall risk score (0-100)
   overallRiskScore: number;
-  
+
   // Whether alerts should be triggered
   shouldAlert: boolean;
 }
@@ -269,21 +273,25 @@ export interface AlertPayload {
   // Alert metadata
   alertId: string;
   timestamp: string;
-  
+
   // Contract information
   contractAddress: string;
   contractName: string;
   chainSelectorName: string;
-  
+
   // Risk details
   riskLevel: RiskLevel;
   riskType: RiskType;
   riskScore: number;
-  
+
   // Analysis summary
   summary: string;
   reasoning: string;
-  
+  cause: string;
+  consequences: string;
+  nextSteps: string[];
+  mitigationStrategy?: string;
+
   // Specific metrics that triggered the alert
   triggeredMetrics: {
     name: string;
@@ -291,13 +299,13 @@ export interface AlertPayload {
     threshold: number;
     unit?: string;
   }[];
-  
+
   // Recommended actions
   suggestedActions: string[];
-  
+
   // Raw data for advanced users
   rawMarketData?: MarketDataSnapshot;
-  
+
   // Links and resources
   explorerLink?: string;
   dashboardLink?: string;
@@ -374,7 +382,7 @@ export interface ChainlinkPriceFeedData {
   roundId: bigint;
   updatedAt: bigint;
   answeredInRound: bigint;
-  
+
   // Computed values
   priceFormatted: number;
   lastUpdateAgo: number; // seconds since last update
@@ -392,24 +400,24 @@ export interface ContractStateData {
   contractAddress: string;
   chainSelectorName: string;
   timestamp: string;
-  
+
   // Function call results
   functionResults: {
     functionName: string;
     returnValue: any;
     decoded?: any;
   }[];
-  
+
   // Token balances if applicable
   tokenBalances?: {
     token: string;
     balance: bigint;
     balanceFormatted: number;
   }[];
-  
+
   // Native balance
   nativeBalance?: bigint;
-  
+
   // Custom state variables
   customState?: Record<string, any>;
 }

@@ -101,7 +101,7 @@ export function sendAlerts(
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       runtime.log(`Error sending alert via ${channel}: ${msg}`);
-      
+
       results.push({
         channel,
         success: false,
@@ -130,13 +130,13 @@ function sendEmailAlert(
 ): AlertDeliveryResult {
   try {
     const emailApiKey = runtime.getSecret({ id: "EMAIL_API_KEY" }).result();
-    
+
     if (!emailApiKey.value) {
       throw new Error("EMAIL_API_KEY not configured");
     }
 
     const emailConfig = runtime.config.emailConfig;
-    
+
     if (!emailConfig) {
       throw new Error("Email configuration not found in config");
     }
@@ -217,7 +217,7 @@ function sendSlackAlert(
 ): AlertDeliveryResult {
   try {
     const webhookUrl = runtime.getSecret({ id: "SLACK_WEBHOOK_URL" }).result();
-    
+
     if (!webhookUrl.value) {
       throw new Error("SLACK_WEBHOOK_URL not configured");
     }
@@ -255,6 +255,34 @@ function sendSlackAlert(
           text: {
             type: "mrkdwn",
             text: `*Reasoning:*\n${alert.reasoning}`,
+          },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Root Cause:*\n${alert.cause}`,
+          },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Consequences:*\n${alert.consequences}`,
+          },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Mitigation Strategy:*\n${alert.mitigationStrategy}`,
+          },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Immediate Next Steps:*\n${alert.nextSteps.map(a => `• ${a}`).join("\n")}`,
           },
         },
         {
@@ -325,7 +353,7 @@ function sendTelegramAlert(
   try {
     const botToken = runtime.getSecret({ id: "TELEGRAM_BOT_TOKEN" }).result();
     const chatId = runtime.getSecret({ id: "TELEGRAM_CHAT_ID" }).result();
-    
+
     if (!botToken.value || !chatId.value) {
       throw new Error("Telegram credentials not configured");
     }
@@ -392,7 +420,7 @@ function sendDiscordAlert(
 ): AlertDeliveryResult {
   try {
     const webhookUrl = runtime.getSecret({ id: "DISCORD_WEBHOOK_URL" }).result();
-    
+
     if (!webhookUrl.value) {
       throw new Error("DISCORD_WEBHOOK_URL not configured");
     }
@@ -476,7 +504,7 @@ function sendOnChainAlert(
   alert: AlertPayload
 ): AlertDeliveryResult {
   runtime.log("On-chain alerts not yet implemented");
-  
+
   return {
     channel: "onchain",
     success: false,
@@ -525,11 +553,24 @@ function buildEmailHTML(alert: AlertPayload): string {
       <div class="metric"><strong>Risk Type:</strong> ${alert.riskType}</div>
       <div class="metric"><strong>Risk Score:</strong> ${alert.riskScore}/100</div>
       
-      <h3>Analysis</h3>
-      <p>${alert.reasoning}</p>
+      <h3>Deep Analysis</h3>
+      <div class="metric"><strong>Root Cause:</strong> ${alert.cause}</div>
+      <div class="metric"><strong>Potential Consequences:</strong> ${alert.consequences}</div>
       
       <div class="actions">
-        <h3>Suggested Actions</h3>
+        <h3>Immediate Next Steps</h3>
+        <ul>
+          ${alert.nextSteps.map(a => `<li>${a}</li>`).join("")}
+        </ul>
+      </div>
+
+      <div class="actions" style="background: #e7f3ff; border-left: 4px solid #007bff;">
+        <h3>Mitigation Strategy</h3>
+        <p>${alert.mitigationStrategy}</p>
+      </div>
+      
+      <div class="actions">
+        <h3>Long-term Actions</h3>
         <ul>
           ${alert.suggestedActions.map(a => `<li>${a}</li>`).join("")}
         </ul>
@@ -566,10 +607,18 @@ ${alert.summary}
 RISK TYPE: ${alert.riskType}
 RISK SCORE: ${alert.riskScore}/100
 
-ANALYSIS
-${alert.reasoning}
+DEEP ANALYSIS
+-----------
+ROOT CAUSE: ${alert.cause}
+CONSEQUENCES: ${alert.consequences}
 
-SUGGESTED ACTIONS:
+IMMEDIATE NEXT STEPS:
+${alert.nextSteps.map((a, i) => `${i + 1}. ${a}`).join("\n")}
+
+MITIGATION STRATEGY:
+${alert.mitigationStrategy}
+
+LONG-TERM ACTIONS:
 ${alert.suggestedActions.map((a, i) => `${i + 1}. ${a}`).join("\n")}
 
 ---

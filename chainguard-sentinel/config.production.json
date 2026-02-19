@@ -1,9 +1,16 @@
 {
   "geminiModel": "gemini-2.0-flash",
-  "cronSchedule": "*/5 * * * *",
+  "cronSchedule": "*/15 * * * *",
   "monitoredContracts": [],
   "gasLimit": "1500000",
   "verboseLogging": false,
   "maxContractsPerRun": 100,
-  "geminiTimeoutMs": 45000
+  "geminiTimeoutMs": 45000,
+  "emailConfig": {
+    "from": "alerts@chainguard.io",
+    "to": [
+      "bilalsolih60@gmail.com"
+    ],
+    "subject": "ChainGuard Risk Alert"
+  }
 }

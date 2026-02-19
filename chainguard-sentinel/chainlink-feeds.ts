@@ -134,7 +134,7 @@ export function fetchPriceFeed(
 
     // Format price
     const priceFormatted = parseFloat(formatUnits(answer, feedConfig.decimals));
-    
+
     // Calculate staleness
     const currentTime = Math.floor(Number(runtime.now()) / 1000);
     const lastUpdateAgo = currentTime - Number(updatedAt);
@@ -335,68 +335,65 @@ export function buildMarketDataSnapshot(
   };
 
   try {
-    // Fetch price feeds if configured
+    // Fetch all configured price feeds
     if (contract.priceFeeds && contract.priceFeeds.length > 0) {
-      const primaryFeed = contract.priceFeeds[0];
-      
-      // Get current price
-      const currentPriceFeed = fetchPriceFeed(
-        runtime,
-        primaryFeed,
-        contract.chainSelectorName
-      );
-      snapshot.currentPrice = currentPriceFeed.priceFormatted;
+      snapshot.customMetrics = snapshot.customMetrics || {};
 
-      // Get historical prices for volatility
-      const historicalPrices = fetchHistoricalPrices(
-        runtime,
-        primaryFeed,
-        contract.chainSelectorName,
-        24 // Last 24 data points
-      );
+      for (const feedConfig of contract.priceFeeds) {
+        try {
+          const feedData = fetchPriceFeed(
+            runtime,
+            feedConfig,
+            contract.chainSelectorName
+          );
 
-      if (historicalPrices.length > 0) {
-        // Calculate 24h price change
-        const oldestPrice = historicalPrices[historicalPrices.length - 1];
-        snapshot.priceChange24h = calculatePriceChange(
-          currentPriceFeed.priceFormatted,
-          oldestPrice
-        );
+          // Use first feed as primary price
+          if (snapshot.currentPrice === undefined) {
+            snapshot.currentPrice = feedData.priceFormatted;
+          }
 
-        // Calculate volatility
-        snapshot.volatility24h = calculateVolatility(historicalPrices);
+          // Register in metrics for AI context
+          snapshot.customMetrics[`price_${feedConfig.pairName.replace("/", "_")}`] = feedData.priceFormatted;
 
-        runtime.log(`Price: $${snapshot.currentPrice?.toFixed(2)}, 24h Change: ${((snapshot.priceChange24h || 0) * 100).toFixed(2)}%, Volatility: ${((snapshot.volatility24h || 0) * 100).toFixed(2)}%`);
-      }
+          // Check for depeg if it's a stablecoin
+          if (feedConfig.pairName.includes("USDC") || feedConfig.pairName.includes("USDT") || feedConfig.pairName.includes("DAI")) {
+            const depegCheck = checkDepeg(
+              feedData.priceFormatted,
+              1.0,
+              contract.riskThresholds.depegTolerance || 0.02
+            );
 
-      // Check for depeg if it's a stablecoin
-      if (primaryFeed.pairName.includes("USDC") || primaryFeed.pairName.includes("USDT") || primaryFeed.pairName.includes("DAI")) {
-        const depegCheck = checkDepeg(
-          currentPriceFeed.priceFormatted,
-          1.0,
-          contract.riskThresholds.depegTolerance || 0.02
-        );
-        
-        snapshot.priceDeviationFromPeg = depegCheck.deviation;
-        
-        if (depegCheck.isDepegged) {
-          runtime.log(`⚠️  DEPEG DETECTED: ${primaryFeed.pairName} is ${(depegCheck.deviation * 100).toFixed(2)}% off peg`);
+            if (snapshot.priceDeviationFromPeg === undefined || depegCheck.deviation > (snapshot.priceDeviationFromPeg || 0)) {
+              snapshot.priceDeviationFromPeg = depegCheck.deviation;
+            }
+
+            if (depegCheck.isDepegged) {
+              runtime.log(`⚠️  DEPEG ALERT [${feedConfig.pairName}]: ${(depegCheck.deviation * 100).toFixed(2)}% deviation`);
+            }
+          }
+        } catch (err) {
+          runtime.log(`Feed skip: ${feedConfig.pairName}`);
         }
       }
+
+      // Volatility analysis on primary feed
+      const primaryFeed = contract.priceFeeds[0];
+      const historicalPrices = fetchHistoricalPrices(runtime, primaryFeed, contract.chainSelectorName, 24);
+
+      if (historicalPrices.length > 0) {
+        snapshot.priceChange24h = calculatePriceChange(snapshot.currentPrice || historicalPrices[0], historicalPrices[historicalPrices.length - 1]);
+        snapshot.volatility24h = calculateVolatility(historicalPrices);
+      }
     } else {
-      // No price feeds configured, try to use default feeds based on chain
-      runtime.log("No price feeds configured, using default ETH/USD feed");
+      runtime.log("No feeds configured for contract, using network default");
       const defaultFeed = getDefaultFeedForChain(contract.chainSelectorName);
-      
       if (defaultFeed) {
-        const priceFeed = fetchPriceFeed(runtime, defaultFeed, contract.chainSelectorName);
-        snapshot.currentPrice = priceFeed.priceFormatted;
+        const feedData = fetchPriceFeed(runtime, defaultFeed, contract.chainSelectorName);
+        snapshot.currentPrice = feedData.priceFormatted;
       }
     }
-
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    runtime.log(`Error building market data snapshot: ${msg}`);
+    runtime.log(`Market snapshot failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return snapshot;

@@ -9,7 +9,7 @@ dotenvConfig();
 
 export const config = {
   // Server
-  port: parseInt(process.env.PORT || '3001', 10),
+  port: parseInt(process.env.PORT || '4100', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   apiVersion: '1.0.0',
 
@@ -29,7 +29,7 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
   
   // CORS
-  corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
+  corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001'],
   
   // Rate Limiting
   rateLimitWindowMs: 15 * 60 * 1000, // 15 minutes

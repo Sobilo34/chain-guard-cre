@@ -50,6 +50,18 @@ export interface RiskMetrics {
   liquidity?: number;
   concentration?: number;
   tvl?: number;
+  volume24h?: number;
+  price?: number;
+}
+
+export interface ContractDetails extends ContractStatus {
+  name: string;
+  chain: string;
+  history?: {
+      volatility: { time: string; value: number }[];
+      riskScore: { time: string; score: number }[];
+  };
+  aiSuggestions?: { title: string; description: string }[];
 }
 
 export interface Alert {

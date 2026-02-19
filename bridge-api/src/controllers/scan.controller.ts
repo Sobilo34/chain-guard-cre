@@ -13,11 +13,21 @@ export const scanControllers = {
    * POST /api/scan
    */
   triggerScan: asyncHandler(async (req: Request, res: Response) => {
-    const { addresses, priority } = req.body;
+    const { addresses, address, contractAddress, priority } = req.body;
+    
+    // Normalize input addresses
+    let targetAddresses: string[] = [];
+    if (addresses && Array.isArray(addresses)) {
+      targetAddresses = addresses;
+    } else if (address) {
+      targetAddresses = [address];
+    } else if (contractAddress) {
+      targetAddresses = [contractAddress];
+    }
     
     // If no addresses specified, scan all contracts
-    const contractsToScan = addresses && addresses.length > 0
-      ? addresses
+    const contractsToScan = targetAddresses.length > 0
+      ? targetAddresses
       : (await contractService.getAllContracts()).map(c => c.address);
     
     // Trigger workflow execution
@@ -29,12 +39,13 @@ export const scanControllers = {
       },
     });
     
-    const response: ScanResponse = {
+    const response: ScanResponse & { data?: any } = {
       scanId: workflowResult.workflowId,
       status: workflowResult.status === 'completed' ? 'completed' : 'running',
       contractsQueued: contractsToScan.length,
+      data: workflowResult.result,
     };
     
-    res.status(202).json(response);
+    res.status(workflowResult.status === 'completed' ? 200 : 202).json(response);
   }),
 };

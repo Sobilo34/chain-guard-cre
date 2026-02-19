@@ -15,4 +15,16 @@ router.get(
   alertControllers.getAlerts
 );
 
+// Acknowledge alert
+router.post(
+  '/:id/acknowledge',
+  alertControllers.acknowledgeAlert
+);
+
+// Resolve alert (mitigate)
+router.post(
+  '/:id/resolve',
+  alertControllers.resolveAlert
+);
+
 export default router;

@@ -18,6 +18,7 @@ import contractRoutes from './routes/contract.routes';
 import alertRoutes from './routes/alert.routes';
 import scanRoutes from './routes/scan.routes';
 import creRoutes from './routes/cre.routes';
+import { contractControllers } from './controllers/contract.controller';
 
 // Types
 import { HealthResponse } from './types';
@@ -69,6 +70,7 @@ app.get('/health', (_req, res) => {
 // ============================================================================
 
 app.use('/api/contracts', contractRoutes);
+app.get('/api/overview', contractControllers.getOverview);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/scan', scanRoutes);
 app.use('/cre', creRoutes);

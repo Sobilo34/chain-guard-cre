@@ -49,4 +49,11 @@ router.get(
   contractControllers.getContractStatus
 );
 
+// Get contract details (extended)
+router.get(
+  '/:address/detail',
+  validateEthereumAddress(),
+  contractControllers.getContractDetail
+);
+
 export default router;

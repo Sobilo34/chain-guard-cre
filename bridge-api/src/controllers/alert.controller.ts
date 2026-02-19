@@ -27,4 +27,22 @@ export const alertControllers = {
       offset: offset ? parseInt(offset as string) : 0,
     });
   }),
+
+  /**
+   * POST /api/alerts/:id/acknowledge
+   */
+  acknowledgeAlert: asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    await contractService.acknowledgeAlert(id);
+    res.json({ success: true, message: 'Alert acknowledged successfully' });
+  }),
+
+  /**
+   * POST /api/alerts/:id/resolve
+   */
+  resolveAlert: asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    await contractService.resolveAlert(id);
+    res.json({ success: true, message: 'Alert resolved successfully' });
+  }),
 };

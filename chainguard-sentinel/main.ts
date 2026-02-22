@@ -32,7 +32,7 @@ import {
 const createOnCronTrigger = (config: Config) => {
   let initialized = false;
 
-  return (runtime: Runtime<Config>, _payload: CronPayload): string => {
+  return async (runtime: Runtime<Config>, _payload: CronPayload): Promise<string> => {
     const executionId = `run-${runtime.now()}`;
 
     runtime.log(`Starting ChainGuard Sentinel run ${executionId}`);
@@ -63,7 +63,7 @@ const createOnCronTrigger = (config: Config) => {
         const contractState = fetchContractState(runtime, contract);
         const marketData = buildMarketDataSnapshot(runtime, contract);
 
-        const aiAnalysis = analyzeRiskWithGemini(
+        const aiAnalysis = await analyzeRiskWithGemini(
           runtime,
           contract.name,
           contract.address,

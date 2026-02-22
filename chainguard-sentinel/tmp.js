@@ -6508,7 +6508,6 @@ var ListSchema = /* @__PURE__ */ messageDesc(file_values_v1_values, 3);
 var DecimalSchema = /* @__PURE__ */ messageDesc(file_values_v1_values, 4);
 var file_sdk_v1alpha_sdk = /* @__PURE__ */ fileDesc("ChVzZGsvdjFhbHBoYS9zZGsucHJvdG8SC3Nkay52MWFscGhhIrQBChVTaW1wbGVDb25zZW5zdXNJbnB1dHMSIQoFdmFsdWUYASABKAsyEC52YWx1ZXMudjEuVmFsdWVIABIPCgVlcnJvchgCIAEoCUgAEjUKC2Rlc2NyaXB0b3JzGAMgASgLMiAuc2RrLnYxYWxwaGEuQ29uc2Vuc3VzRGVzY3JpcHRvchIhCgdkZWZhdWx0GAQgASgLMhAudmFsdWVzLnYxLlZhbHVlQg0KC29ic2VydmF0aW9uIpABCglGaWVsZHNNYXASMgoGZmllbGRzGAEgAygLMiIuc2RrLnYxYWxwaGEuRmllbGRzTWFwLkZpZWxkc0VudHJ5Gk8KC0ZpZWxkc0VudHJ5EgsKA2tleRgBIAEoCRIvCgV2YWx1ZRgCIAEoCzIgLnNkay52MWFscGhhLkNvbnNlbnN1c0Rlc2NyaXB0b3I6AjgBIoYBChNDb25zZW5zdXNEZXNjcmlwdG9yEjMKC2FnZ3JlZ2F0aW9uGAEgASgOMhwuc2RrLnYxYWxwaGEuQWdncmVnYXRpb25UeXBlSAASLAoKZmllbGRzX21hcBgCIAEoCzIWLnNkay52MWFscGhhLkZpZWxkc01hcEgAQgwKCmRlc2NyaXB0b3IiagoNUmVwb3J0UmVxdWVzdBIXCg9lbmNvZGVkX3BheWxvYWQYASABKAwSFAoMZW5jb2Rlcl9uYW1lGAIgASgJEhQKDHNpZ25pbmdfYWxnbxgDIAEoCRIUCgxoYXNoaW5nX2FsZ28YBCABKAkilwEKDlJlcG9ydFJlc3BvbnNlEhUKDWNvbmZpZ19kaWdlc3QYASABKAwSEgoGc2VxX25yGAIgASgEQgIwABIWCg5yZXBvcnRfY29udGV4dBgDIAEoDBISCgpyYXdfcmVwb3J0GAQgASgMEi4KBHNpZ3MYBSADKAsyIC5zZGsudjFhbHBoYS5BdHRyaWJ1dGVkU2lnbmF0dXJlIjsKE0F0dHJpYnV0ZWRTaWduYXR1cmUSEQoJc2lnbmF0dXJlGAEgASgMEhEKCXNpZ25lcl9pZBgCIAEoDSJrChFDYXBhYmlsaXR5UmVxdWVzdBIKCgJpZBgBIAEoCRIlCgdwYXlsb2FkGAIgASgLMhQuZ29vZ2xlLnByb3RvYnVmLkFueRIOCgZtZXRob2QYAyABKAkSEwoLY2FsbGJhY2tfaWQYBCABKAUiWgoSQ2FwYWJpbGl0eVJlc3BvbnNlEicKB3BheWxvYWQYASABKAsyFC5nb29nbGUucHJvdG9idWYuQW55SAASDwoFZXJyb3IYAiABKAlIAEIKCghyZXNwb25zZSJYChNUcmlnZ2VyU3Vic2NyaXB0aW9uEgoKAmlkGAEgASgJEiUKB3BheWxvYWQYAiABKAsyFC5nb29nbGUucHJvdG9idWYuQW55Eg4KBm1ldGhvZBgDIAEoCSJVChpUcmlnZ2VyU3Vic2NyaXB0aW9uUmVxdWVzdBI3Cg1zdWJzY3JpcHRpb25zGAEgAygLMiAuc2RrLnYxYWxwaGEuVHJpZ2dlclN1YnNjcmlwdGlvbiJACgdUcmlnZ2VyEg4KAmlkGAEgASgEQgIwABIlCgdwYXlsb2FkGAIgASgLMhQuZ29vZ2xlLnByb3RvYnVmLkFueSInChhBd2FpdENhcGFiaWxpdGllc1JlcXVlc3QSCwoDaWRzGAEgAygFIrgBChlBd2FpdENhcGFiaWxpdGllc1Jlc3BvbnNlEkgKCXJlc3BvbnNlcxgBIAMoCzI1LnNkay52MWFscGhhLkF3YWl0Q2FwYWJpbGl0aWVzUmVzcG9uc2UuUmVzcG9uc2VzRW50cnkaUQoOUmVzcG9uc2VzRW50cnkSCwoDa2V5GAEgASgFEi4KBXZhbHVlGAIgASgLMh8uc2RrLnYxYWxwaGEuQ2FwYWJpbGl0eVJlc3BvbnNlOgI4ASKgAQoORXhlY3V0ZVJlcXVlc3QSDgoGY29uZmlnGAEgASgMEisKCXN1YnNjcmliZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eUgAEicKB3RyaWdnZXIYAyABKAsyFC5zZGsudjFhbHBoYS5UcmlnZ2VySAASHQoRbWF4X3Jlc3BvbnNlX3NpemUYBCABKARCAjAAQgkKB3JlcXVlc3QimQEKD0V4ZWN1dGlvblJlc3VsdBIhCgV2YWx1ZRgBIAEoCzIQLnZhbHVlcy52MS5WYWx1ZUgAEg8KBWVycm9yGAIgASgJSAASSAoVdHJpZ2dlcl9zdWJzY3JpcHRpb25zGAMgASgLMicuc2RrLnYxYWxwaGEuVHJpZ2dlclN1YnNjcmlwdGlvblJlcXVlc3RIAEIICgZyZXN1bHQiVgoRR2V0U2VjcmV0c1JlcXVlc3QSLAoIcmVxdWVzdHMYASADKAsyGi5zZGsudjFhbHBoYS5TZWNyZXRSZXF1ZXN0EhMKC2NhbGxiYWNrX2lkGAIgASgFIiIKE0F3YWl0U2VjcmV0c1JlcXVlc3QSCwoDaWRzGAEgAygFIqsBChRBd2FpdFNlY3JldHNSZXNwb25zZRJDCglyZXNwb25zZXMYASADKAsyMC5zZGsudjFhbHBoYS5Bd2FpdFNlY3JldHNSZXNwb25zZS5SZXNwb25zZXNFbnRyeRpOCg5SZXNwb25zZXNFbnRyeRILCgNrZXkYASABKAUSKwoFdmFsdWUYAiABKAsyHC5zZGsudjFhbHBoYS5TZWNyZXRSZXNwb25zZXM6AjgBIi4KDVNlY3JldFJlcXVlc3QSCgoCaWQYASABKAkSEQoJbmFtZXNwYWNlGAIgASgJIkUKBlNlY3JldBIKCgJpZBgBIAEoCRIRCgluYW1lc3BhY2UYAiABKAkSDQoFb3duZXIYAyABKAkSDQoFdmFsdWUYBCABKAkiSgoLU2VjcmV0RXJyb3ISCgoCaWQYASABKAkSEQoJbmFtZXNwYWNlGAIgASgJEg0KBW93bmVyGAMgASgJEg0KBWVycm9yGAQgASgJIm4KDlNlY3JldFJlc3BvbnNlEiUKBnNlY3JldBgBIAEoCzITLnNkay52MWFscGhhLlNlY3JldEgAEikKBWVycm9yGAIgASgLMhguc2RrLnYxYWxwaGEuU2VjcmV0RXJyb3JIAEIKCghyZXNwb25zZSJBCg9TZWNyZXRSZXNwb25zZXMSLgoJcmVzcG9uc2VzGAEgAygLMhsuc2RrLnYxYWxwaGEuU2VjcmV0UmVzcG9uc2UquAEKD0FnZ3JlZ2F0aW9uVHlwZRIgChxBR0dSRUdBVElPTl9UWVBFX1VOU1BFQ0lGSUVEEAASGwoXQUdHUkVHQVRJT05fVFlQRV9NRURJQU4QARIeChpBR0dSRUdBVElPTl9UWVBFX0lERU5USUNBTBACEiIKHkFHR1JFR0FUSU9OX1RZUEVfQ09NTU9OX1BSRUZJWBADEiIKHkFHR1JFR0FUSU9OX1RZUEVfQ09NTU9OX1NVRkZJWBAEKjkKBE1vZGUSFAoQTU9ERV9VTlNQRUNJRklFRBAAEgwKCE1PREVfRE9OEAESDQoJTU9ERV9OT0RFEAJCaAoPY29tLnNkay52MWFscGhhQghTZGtQcm90b1ABogIDU1hYqgILU2RrLlYxYWxwaGHKAgtTZGtcVjFhbHBoYeICF1Nka1xWMWFscGhhXEdQQk1ldGFkYXRh6gIMU2RrOjpWMWFscGhhYgZwcm90bzM", [file_google_protobuf_any, file_google_protobuf_empty, file_values_v1_values]);
 var SimpleConsensusInputsSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 0);
-var ConsensusDescriptorSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 2);
 var ReportRequestSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 3);
 var ReportResponseSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 4);
 var CapabilityRequestSchema = /* @__PURE__ */ messageDesc(file_sdk_v1alpha_sdk, 6);
@@ -11933,33 +11932,6 @@ var defaultLookup = new NetworkLookup({
   testnetBySelectorByFamily
 });
 var getNetwork = (options) => defaultLookup.find(options);
-function consensusIdenticalAggregation() {
-  return simpleConsensus(AggregationType.IDENTICAL);
-}
-
-class ConsensusImpl {
-  descriptor;
-  defaultValue;
-  constructor(descriptor, defaultValue) {
-    this.descriptor = descriptor;
-    this.defaultValue = defaultValue;
-  }
-  withDefault(t) {
-    return new ConsensusImpl(this.descriptor, t);
-  }
-  _usesUToForceShape(_) {}
-}
-function simpleConsensus(agg) {
-  return new ConsensusImpl(simpleDescriptor(agg));
-}
-function simpleDescriptor(agg) {
-  return create(ConsensusDescriptorSchema, {
-    descriptor: {
-      case: "aggregation",
-      value: agg
-    }
-  });
-}
 
 class Int64 {
   static INT64_MIN = -(2n ** 63n);
@@ -17057,9 +17029,25 @@ var SEPOLIA_FEEDS = {
     heartbeat: 3600
   }
 };
+var MAINNET_FEEDS = {
+  "ETH/USD": {
+    feedAddress: "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419",
+    pairName: "ETH/USD",
+    decimals: 8,
+    heartbeat: 3600
+  }
+};
 var AMOY_FEEDS = {
   "MATIC/USD": {
     feedAddress: "0x001382149eBa3441043c1c66972b4772963f5D43",
+    pairName: "MATIC/USD",
+    decimals: 8,
+    heartbeat: 120
+  }
+};
+var POLYGON_FEEDS = {
+  "MATIC/USD": {
+    feedAddress: "0xAB594600376Ec9fD91F8e885dADF0CE036862dE0",
     pairName: "MATIC/USD",
     decimals: 8,
     heartbeat: 120
@@ -17241,10 +17229,11 @@ function buildMarketDataSnapshot(runtime2, contract) {
   return snapshot;
 }
 function getDefaultFeedForChain(chainSelectorName) {
+  const isTestnet = chainSelectorName.includes("testnet");
   if (chainSelectorName.includes("ethereum")) {
-    return SEPOLIA_FEEDS["ETH/USD"];
+    return isTestnet ? SEPOLIA_FEEDS["ETH/USD"] : MAINNET_FEEDS["ETH/USD"];
   } else if (chainSelectorName.includes("polygon")) {
-    return AMOY_FEEDS["MATIC/USD"];
+    return isTestnet ? AMOY_FEEDS["MATIC/USD"] : POLYGON_FEEDS["MATIC/USD"];
   }
   return null;
 }
@@ -17655,6 +17644,8 @@ function tryLoadGeminiKeyFromLocalFiles() {
   const candidates = [
     path_default.join(cwd, ".env"),
     path_default.join(cwd, "secrets.yaml"),
+    path_default.join(cwd, "..", ".env"),
+    path_default.join(cwd, "..", "secrets.yaml"),
     path_default.join(cwd, "chainguard-sentinel", "..", "secrets.yaml")
   ];
   for (const filePath of candidates) {
@@ -17672,7 +17663,7 @@ function tryLoadGeminiKeyFromLocalFiles() {
   }
   return "";
 }
-function analyzeRiskWithGemini(runtime2, contractName, contractAddress, chainName, marketData, contractState, riskThresholds) {
+async function analyzeRiskWithGemini(runtime2, contractName, contractAddress, chainName, marketData, contractState, riskThresholds) {
   try {
     runtime2.log(`Querying Gemini AI for risk analysis: ${contractName}`);
     let geminiApiKeyValue = "";
@@ -17712,11 +17703,11 @@ function analyzeRiskWithGemini(runtime2, contractName, contractAddress, chainNam
     }
     const userPrompt = buildUserPrompt(contractName, contractAddress, chainName, marketData, contractState, riskThresholds);
     runtime2.log(`Prompt length: ${userPrompt.length} chars`);
-    const httpClient = new ClientCapability2;
-    const result = httpClient.sendRequest(runtime2, sendGeminiRequest(geminiApiKeyValue, userPrompt), consensusIdenticalAggregation())(runtime2.config).result();
+    runtime2.log(`Prompt length: ${userPrompt.length} chars`);
+    const result = await sendGeminiRequestAsync(geminiApiKeyValue, userPrompt, runtime2);
     runtime2.log(`Gemini API status: ${result.statusCode}`);
     if (result.statusCode !== 200) {
-      throw new Error(`Gemini API returned status ${result.statusCode}`);
+      throw new Error(`Gemini API returned status ${result.statusCode}: ${result.geminiResponse}`);
     }
     const riskAnalysis = parseGeminiResponse(runtime2, result);
     runtime2.log(`Risk Assessment: ${riskAnalysis.riskLevel} | Type: ${riskAnalysis.riskType} | Confidence: ${riskAnalysis.confidence}/10000`);
@@ -17739,7 +17730,7 @@ function analyzeRiskWithGemini(runtime2, contractName, contractAddress, chainNam
     };
   }
 }
-var sendGeminiRequest = (apiKey, userPrompt) => (sendRequester, config) => {
+async function sendGeminiRequestAsync(apiKey, userPrompt, runtime2) {
   const requestPayload = {
     system_instruction: {
       parts: [{ text: SYSTEM_PROMPT }]
@@ -17760,29 +17751,25 @@ var sendGeminiRequest = (apiKey, userPrompt) => (sendRequester, config) => {
       }
     ]
   };
-  const preferredModel = config.geminiModel ?? "gemini-2.0-flash-exp";
-  const modelCandidates = Array.from(new Set([
+  const modelCandidates = [
     "gemini-2.0-flash",
     "gemini-2.0-flash-exp",
     "gemini-1.5-pro",
-    "gemini-1.5-flash",
-    "gemini-flash-latest",
-    "gemini-pro-latest"
-  ]));
+    "gemini-1.5-flash"
+  ];
   let statusCode = 0;
   let rawJsonString = "";
   for (const model of modelCandidates) {
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const response = sendRequester.sendRequest({
+    const response = await fetch(apiUrl, {
       method: "POST",
-      url: apiUrl,
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify(requestPayload)
-    }).result();
-    statusCode = response.statusCode;
-    rawJsonString = new TextDecoder().decode(response.body);
+    });
+    statusCode = response.status;
+    rawJsonString = await response.text();
     if (statusCode === 200) {
       break;
     }
@@ -17806,7 +17793,7 @@ var sendGeminiRequest = (apiKey, userPrompt) => (sendRequester, config) => {
     rawJsonString,
     tokensUsed
   };
-};
+}
 function buildUserPrompt(contractName, contractAddress, chainName, marketData, contractState, riskThresholds) {
   let prompt = USER_PROMPT_TEMPLATE;
   prompt = prompt.replace("{{contractName}}", contractName);
@@ -18401,7 +18388,7 @@ function getAllMonitoredContracts() {
 }
 var createOnCronTrigger = (config) => {
   let initialized = false;
-  return (runtime2, _payload) => {
+  return async (runtime2, _payload) => {
     const executionId = `run-${runtime2.now()}`;
     runtime2.log(`Starting ChainGuard Sentinel run ${executionId}`);
     if (!initialized) {
@@ -18422,7 +18409,7 @@ var createOnCronTrigger = (config) => {
       try {
         const contractState = fetchContractState(runtime2, contract);
         const marketData = buildMarketDataSnapshot(runtime2, contract);
-        const aiAnalysis = analyzeRiskWithGemini(runtime2, contract.name, contract.address, contract.chainSelectorName, marketData, contractState, contract.riskThresholds);
+        const aiAnalysis = await analyzeRiskWithGemini(runtime2, contract.name, contract.address, contract.chainSelectorName, marketData, contractState, contract.riskThresholds);
         const assessment = evaluateRisk(runtime2, contract, marketData, contractState, aiAnalysis);
         if (assessment.shouldAlert) {
           const alert = buildAlertPayload(runtime2, assessment, executionId);

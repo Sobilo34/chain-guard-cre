@@ -213,6 +213,11 @@ export class CREWorkflowService {
         priceFeeds: c.priceFeeds || [],
       }));
 
+      // Inject Gemini API key for Wasm runtime sandbox
+      if (process.env.GEMINI_API_KEY) {
+        parsed.geminiApiKey = process.env.GEMINI_API_KEY;
+      }
+
       require('fs').writeFileSync(configPath, JSON.stringify(parsed, null, 2));
       logger.debug('Synchronized contracts to CRE config.json');
     } catch (e: any) {

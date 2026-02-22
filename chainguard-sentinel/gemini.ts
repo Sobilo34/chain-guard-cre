@@ -3,10 +3,7 @@
 // Uses CRE HTTP capability to query Gemini with structured prompts.
 
 import {
-  HTTPClient,
-  consensusIdenticalAggregation,
   type Runtime,
-  type HTTPSendRequester,
 } from "@chainlink/cre-sdk";
 import fs from "node:fs";
 import path from "node:path";
@@ -120,6 +117,8 @@ function tryLoadGeminiKeyFromLocalFiles(): string {
   const candidates = [
     path.join(cwd, ".env"),
     path.join(cwd, "secrets.yaml"),
+    path.join(cwd, "..", ".env"),
+    path.join(cwd, "..", "secrets.yaml"),
     path.join(cwd, "chainguard-sentinel", "..", "secrets.yaml"),
   ];
 
@@ -157,7 +156,7 @@ function tryLoadGeminiKeyFromLocalFiles(): string {
  * @param riskThresholds - Configured risk thresholds
  * @returns Gemini risk analysis response
  */
-export function analyzeRiskWithGemini(
+export async function analyzeRiskWithGemini(
   runtime: Runtime<Config>,
   contractName: string,
   contractAddress: string,
@@ -165,7 +164,7 @@ export function analyzeRiskWithGemini(
   marketData: MarketDataSnapshot,
   contractState: ContractStateData,
   riskThresholds: Record<string, any>
-): GeminiRiskResponse {
+): Promise<GeminiRiskResponse> {
   try {
     runtime.log(`Querying Gemini AI for risk analysis: ${contractName}`);
 
@@ -224,21 +223,15 @@ export function analyzeRiskWithGemini(
 
     runtime.log(`Prompt length: ${userPrompt.length} chars`);
 
-    // Use CRE HTTP Client for consensus across DON nodes
-    const httpClient = new HTTPClient();
+    runtime.log(`Prompt length: ${userPrompt.length} chars`);
 
-    const result: GeminiResponse = httpClient
-      .sendRequest(
-        runtime,
-        sendGeminiRequest(geminiApiKeyValue, userPrompt),
-        consensusIdenticalAggregation<GeminiResponse>()
-      )(runtime.config)
-      .result();
+    // Use fetch API natively inside the Wasm/Deno guest sandbox
+    const result = await sendGeminiRequestAsync(geminiApiKeyValue, userPrompt, runtime);
 
     runtime.log(`Gemini API status: ${result.statusCode}`);
 
     if (result.statusCode !== 200) {
-      throw new Error(`Gemini API returned status ${result.statusCode}`);
+      throw new Error(`Gemini API returned status ${result.statusCode}: ${result.geminiResponse}`);
     }
 
     // Parse and validate response
@@ -279,95 +272,87 @@ export function analyzeRiskWithGemini(
  * Builds and executes HTTP request to Gemini API.
  * Constructs JSON payload with system instructions and user prompt.
  */
-const sendGeminiRequest =
-  (apiKey: string, userPrompt: string) =>
-    (sendRequester: HTTPSendRequester, config: Config): GeminiResponse => {
-      // Construct Gemini API request payload
-      const requestPayload: GeminiApiRequest = {
-        system_instruction: {
-          parts: [{ text: SYSTEM_PROMPT }],
+/**
+ * Performs a blocking native fetch call to Gemini API wrapper.
+ * (Note: In CRE Deno environment, we can use top-level blocking or await).
+ */
+async function sendGeminiRequestAsync(apiKey: string, userPrompt: string, runtime: Runtime<Config>): Promise<GeminiResponse> {
+  const requestPayload: GeminiApiRequest = {
+    system_instruction: {
+      parts: [{ text: SYSTEM_PROMPT }],
+    },
+    tools: [
+      {
+        googleSearchRetrieval: {
+          dynamicRetrievalConfig: {
+            mode: "MODE_DYNAMIC",
+            dynamicThreshold: 0.3,
+          },
         },
-        tools: [
-          {
-            // Optional: Enable Google Search grounding for real-time info
-            googleSearchRetrieval: {
-              dynamicRetrievalConfig: {
-                mode: "MODE_DYNAMIC",
-                dynamicThreshold: 0.3,
-              },
-            },
-          },
-        ],
-        contents: [
-          {
-            parts: [{ text: userPrompt }],
-          },
-        ],
-      };
+      },
+    ],
+    contents: [
+      {
+        parts: [{ text: userPrompt }],
+      },
+    ],
+  };
 
-      const preferredModel = config.geminiModel ?? "gemini-2.0-flash-exp";
-      const modelCandidates = Array.from(
-        new Set([
-          "gemini-2.0-flash",
-          "gemini-2.0-flash-exp",
-          "gemini-1.5-pro",
-          "gemini-1.5-flash",
-          "gemini-flash-latest",
-          "gemini-pro-latest",
-        ])
-      );
+  const modelCandidates = [
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-exp",
+    "gemini-1.5-pro",
+    "gemini-1.5-flash"
+  ];
 
-      let statusCode = 0;
-      let rawJsonString = "";
+  let statusCode = 0;
+  let rawJsonString = "";
 
-      for (const model of modelCandidates) {
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  for (const model of modelCandidates) {
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-        const response = sendRequester
-          .sendRequest({
-            method: "POST",
-            url: apiUrl,
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(requestPayload),
-          })
-          .result();
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestPayload),
+    });
 
-        statusCode = response.statusCode;
-        rawJsonString = new TextDecoder().decode(response.body);
+    statusCode = response.status;
+    rawJsonString = await response.text();
 
-        if (statusCode === 200) {
-          break;
-        }
+    if (statusCode === 200) {
+      break;
+    }
 
-        const lower = rawJsonString.toLowerCase();
-        const isModelError = statusCode === 404 && (lower.includes("not found") || lower.includes("not supported"));
-        if (!isModelError) {
-          break;
-        }
-      }
+    const lower = rawJsonString.toLowerCase();
+    const isModelError = statusCode === 404 && (lower.includes("not found") || lower.includes("not supported"));
+    if (!isModelError) {
+      break;
+    }
+  }
 
-      if (statusCode !== 200) {
-        throw new Error(`Gemini API error: ${statusCode} - ${rawJsonString.substring(0, 200)}`);
-      }
+  if (statusCode !== 200) {
+    throw new Error(`Gemini API error: ${statusCode} - ${rawJsonString.substring(0, 200)}`);
+  }
 
-      // Parse response
-      const apiResponse: GeminiApiResponse = JSON.parse(rawJsonString);
+  // Parse response
+  const apiResponse: GeminiApiResponse = JSON.parse(rawJsonString);
 
-      const geminiResponse =
-        apiResponse.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-      const responseId = apiResponse.responseId || "unknown";
-      const tokensUsed = apiResponse.usageMetadata?.totalTokenCount;
+  const geminiResponse =
+    apiResponse.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+  const responseId = apiResponse.responseId || "unknown";
+  const tokensUsed = apiResponse.usageMetadata?.totalTokenCount;
 
-      return {
-        statusCode,
-        geminiResponse,
-        responseId,
-        rawJsonString,
-        tokensUsed,
-      };
-    };
+  return {
+    statusCode,
+    geminiResponse,
+    responseId,
+    rawJsonString,
+    tokensUsed,
+  };
+}
 
 /*********************************
  * Prompt Building

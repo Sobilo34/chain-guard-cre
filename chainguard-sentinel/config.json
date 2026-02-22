@@ -3,46 +3,8 @@
   "cronSchedule": "*/15 * * * *",
   "monitoredContracts": [
     {
-      "address": "0xa4d19a7b133d2a9face5b1ad407ca7b9d4ee9284",
-      "name": "BlockFinax",
-      "chainSelectorName": "ethereum-testnet-sepolia",
-      "riskThresholds": {
-        "depegTolerance": 0.02,
-        "volatilityMax": 0.15,
-        "liquidityDropMax": 0.25,
-        "collateralRatioMin": 1.5,
-        "volatility": 0.15,
-        "liquidity": 0.2,
-        "concentration": 0.25,
-        "overall": 0.3
-      },
-      "alertChannels": [
-        "email"
-      ],
-      "priceFeeds": []
-    },
-    {
-      "address": "0x3449cba02b741546024d0e60c870f0a235a8d585",
-      "name": "Asco Uniswap",
-      "chainSelectorName": "ethereum-mainnet",
-      "riskThresholds": {
-        "depegTolerance": 0.02,
-        "volatilityMax": 0.15,
-        "liquidityDropMax": 0.25,
-        "collateralRatioMin": 1.5,
-        "volatility": 0.15,
-        "liquidity": 0.2,
-        "concentration": 0.25,
-        "overall": 0.3
-      },
-      "alertChannels": [
-        "email"
-      ],
-      "priceFeeds": []
-    },
-    {
       "address": "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
-      "name": "Uni Token",
+      "name": "Uniswap(UNI)",
       "chainSelectorName": "ethereum-mainnet",
       "riskThresholds": {
         "depegTolerance": 0.02,
@@ -53,6 +15,25 @@
         "liquidity": 0.2,
         "concentration": 0.25,
         "overall": 0.3
+      },
+      "alertChannels": [
+        "email"
+      ],
+      "priceFeeds": []
+    },
+    {
+      "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "name": "USDC Token",
+      "chainSelectorName": "ethereum-mainnet",
+      "riskThresholds": {
+        "depegTolerance": 0.05,
+        "volatilityMax": 0.2,
+        "liquidityDropMax": 0.3,
+        "collateralRatioMin": 1,
+        "volatility": 0.1,
+        "liquidity": 0.2,
+        "concentration": 0.3,
+        "overall": 0.4
       },
       "alertChannels": [
         "email"
@@ -70,5 +51,6 @@
   },
   "verboseLogging": true,
   "maxContractsPerRun": 10,
-  "geminiTimeoutMs": 30000
+  "geminiTimeoutMs": 30000,
+  "geminiApiKey": "AIzaSyC9_PZPumGJgke1u3SE8YnIs7LYSGKlzFY"
 }

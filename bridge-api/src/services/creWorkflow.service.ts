@@ -28,7 +28,7 @@ export class CREWorkflowService {
     payload: CREHttpTriggerPayload
   ): Promise<CRETriggerResponse> {
     const workflowId = this.generateWorkflowId();
-    
+
     logger.info('Executing normal CRE workflow', { workflowId, payload });
 
     const execution: WorkflowExecution = {
@@ -44,15 +44,15 @@ export class CREWorkflowService {
     try {
       // Run CRE simulation
       const result = await this.runCRESimulation(payload);
-      
+
       execution.status = result.success ? 'completed' : 'failed';
       execution.completedAt = new Date();
       execution.result = result.output;
-      
-      logger.info('Workflow execution completed', { 
-        workflowId, 
+
+      logger.info('Workflow execution completed', {
+        workflowId,
         status: execution.status,
-        duration: result.duration 
+        duration: result.duration
       });
 
       return {
@@ -64,9 +64,9 @@ export class CREWorkflowService {
       execution.status = 'failed';
       execution.completedAt = new Date();
       execution.error = error.message;
-      
+
       logger.error('Workflow execution failed', { workflowId, error: error.message });
-      
+
       throw error;
     }
   }
@@ -78,7 +78,7 @@ export class CREWorkflowService {
     payload: CREConfidentialTriggerPayload
   ): Promise<CREConfidentialResponse> {
     const workflowId = this.generateWorkflowId();
-    
+
     logger.info('Executing confidential CRE workflow', { workflowId, payload });
 
     // Check if in simulation mode
@@ -99,14 +99,14 @@ export class CREWorkflowService {
     try {
       // Run confidential simulation with secret injection
       const result = await this.runConfidentialSimulation(payload);
-      
+
       execution.status = result.success ? 'completed' : 'failed';
       execution.completedAt = new Date();
       execution.result = result.output;
 
-      logger.info('Confidential workflow execution completed', { 
+      logger.info('Confidential workflow execution completed', {
         workflowId,
-        encrypted: payload.enclaveConfig.encryptResponse 
+        encrypted: payload.enclaveConfig.encryptResponse
       });
 
       // Handle response encryption if requested
@@ -130,9 +130,9 @@ export class CREWorkflowService {
       execution.status = 'failed';
       execution.completedAt = new Date();
       execution.error = error.message;
-      
+
       logger.error('Confidential workflow execution failed', { workflowId, error: error.message });
-      
+
       throw error;
     }
   }
@@ -145,20 +145,24 @@ export class CREWorkflowService {
     const logs: string[] = [];
 
     try {
+      await this.syncConfigWithContracts();
+
       // Build CRE command
       const command = `cre workflow simulate ${creWorkflowPath} --target ${creTarget}`;
-      
+
       logger.debug('Running CRE command', { command });
       logs.push(`Command: ${command}`);
 
       // Execute with timeout
       const { stdout, stderr } = await this.execWithTimeout(command, simulation.timeout);
-      
+
       logs.push(`STDOUT: ${stdout}`);
       if (stderr) logs.push(`STDERR: ${stderr}`);
 
       // Parse output
       const output = this.parseSimulationOutput(stdout);
+
+      this.processAssessments(stdout).catch(e => logger.error('Failed to process assessments', { error: e.message }));
 
       return {
         success: true,
@@ -168,13 +172,51 @@ export class CREWorkflowService {
       };
     } catch (error: any) {
       logs.push(`Error: ${error.message}`);
-      
+
       return {
         success: false,
         output: { error: error.message },
         duration: Date.now() - startTime,
         logs,
       };
+    }
+  }
+
+  /**
+   * Synchronize active contracts configuration to config.json before simulation
+   */
+  private async syncConfigWithContracts(): Promise<void> {
+    const { contractService } = await import('./contract.service');
+    const contracts = await contractService.getAllContracts();
+    const configPath = require('path').resolve(process.cwd(), creWorkflowPath, 'config.json');
+
+    if (!require('fs').existsSync(configPath)) {
+      logger.warn('CRE config.json not found to sync contracts');
+      return;
+    }
+
+    try {
+      const raw = require('fs').readFileSync(configPath, 'utf-8');
+      const parsed = JSON.parse(raw);
+
+      parsed.monitoredContracts = contracts.map(c => ({
+        address: c.address,
+        name: c.name || c.protocol || "Unknown",
+        chainSelectorName: c.chainSelectorName || c.chain || "ethereum-testnet-sepolia",
+        riskThresholds: Object.assign({
+          depegTolerance: 0.02,
+          volatilityMax: 0.15,
+          liquidityDropMax: 0.25,
+          collateralRatioMin: 1.5,
+        }, c.riskThresholds),
+        alertChannels: c.alertChannels || ["email"],
+        priceFeeds: c.priceFeeds || [],
+      }));
+
+      require('fs').writeFileSync(configPath, JSON.stringify(parsed, null, 2));
+      logger.debug('Synchronized contracts to CRE config.json');
+    } catch (e: any) {
+      logger.error('Failed to sync config.json', { error: e.message });
     }
   }
 
@@ -209,7 +251,7 @@ export class CREWorkflowService {
       };
     } catch (error: any) {
       logs.push(`Confidential execution error: ${error.message}`);
-      
+
       return {
         success: false,
         output: { error: error.message },
@@ -250,7 +292,7 @@ export class CREWorkflowService {
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
       }
-      
+
       // If no JSON, return parsed text
       return {
         output: stdout,
@@ -294,9 +336,9 @@ export class CREWorkflowService {
     // For simulation, we'll just base64 encode
     const jsonString = JSON.stringify(data);
     const base64 = Buffer.from(jsonString).toString('base64');
-    
+
     logger.debug('Response encrypted (simulated)', { size: base64.length });
-    
+
     return base64;
   }
 
@@ -328,11 +370,38 @@ export class CREWorkflowService {
     if (this.executions.size > 100) {
       const sorted = Array.from(this.executions.entries())
         .sort((a, b) => a[1].startedAt.getTime() - b[1].startedAt.getTime());
-      
+
       const toRemove = sorted.slice(0, sorted.length - 100);
       toRemove.forEach(([id]) => this.executions.delete(id));
-      
+
       logger.info(`Cleaned up ${toRemove.length} old workflow executions`);
+    }
+  }
+
+  /**
+   * Parse detailed risk assessments emitted by Sentinel and push to ContractService
+   */
+  private async processAssessments(stdout: string) {
+    const { contractService } = await import('./contract.service');
+    const lines = stdout.split('\n');
+    for (const line of lines) {
+      if (line.includes('[SENTINEL_ASSESSMENT]')) {
+        try {
+          const jsonStr = line.substring(line.indexOf('[SENTINEL_ASSESSMENT]') + '[SENTINEL_ASSESSMENT]'.length).trim();
+          const parsed = JSON.parse(jsonStr);
+          await contractService.updateContractStatus(
+            parsed.contractAddress,
+            parsed.riskLevel,
+            parsed.riskScore,
+            parsed.metrics
+          );
+          if (parsed.latestScan) {
+            await contractService.updateLatestScan(parsed.contractAddress, parsed.latestScan);
+          }
+        } catch (e: any) {
+          logger.error('Error parsing assignment output JSON', { error: e.message });
+        }
+      }
     }
   }
 }

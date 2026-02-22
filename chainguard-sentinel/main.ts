@@ -92,6 +92,20 @@ const createOnCronTrigger = (config: Config) => {
           runtime.log(`No alert triggered for ${contract.name}`);
         }
 
+        runtime.log(`[SENTINEL_ASSESSMENT] ` + JSON.stringify({
+          contractAddress: assessment.contractAddress,
+          riskLevel: assessment.aiAnalysis.riskLevel,
+          riskScore: assessment.overallRiskScore,
+          metrics: {
+            ...assessment.marketData,
+            volatility: assessment.marketData.volatility24h,
+            tvl: assessment.marketData.totalValueLocked,
+            liquidity: assessment.marketData.totalLiquidity,
+          },
+          latestScan: assessment.aiAnalysis
+        }));
+
+
       } catch (err) {
         runtime.log(`Error processing ${contract.name}: ${err instanceof Error ? err.message : String(err)}`);
       }

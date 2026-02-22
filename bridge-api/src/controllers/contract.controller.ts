@@ -33,15 +33,16 @@ export const contractControllers = {
         contractName: contract.name,
         protocol: contract.protocol,
         alertChannels: contract.alertChannels || ['email'],
+        priceFeeds: contract.priceFeeds || [],
       },
     });
-    
+
     const response: ApiSuccessResponse = {
       success: true,
       message: 'Contract added successfully',
       data: contract,
     };
-    
+
     res.status(201).json(response);
   }),
 
@@ -50,11 +51,11 @@ export const contractControllers = {
    */
   getContract: asyncHandler(async (req: Request, res: Response) => {
     const contract = await contractService.getContract(req.params.address);
-    
+
     if (!contract) {
       throw notFound('Contract');
     }
-    
+
     res.json(contract);
   }),
 
@@ -74,15 +75,16 @@ export const contractControllers = {
         contractName: contract.name,
         protocol: contract.protocol,
         alertChannels: contract.alertChannels || ['email'],
+        priceFeeds: contract.priceFeeds || [],
       },
     });
-    
+
     const response: ApiSuccessResponse = {
       success: true,
       message: 'Contract updated successfully',
       data: contract,
     };
-    
+
     res.json(response);
   }),
 
@@ -91,12 +93,12 @@ export const contractControllers = {
    */
   deleteContract: asyncHandler(async (req: Request, res: Response) => {
     await contractService.deleteContract(req.params.address);
-    
+
     const response: ApiSuccessResponse = {
       success: true,
       message: 'Contract removed successfully',
     };
-    
+
     res.json(response);
   }),
 
@@ -105,11 +107,11 @@ export const contractControllers = {
    */
   getContractStatus: asyncHandler(async (req: Request, res: Response) => {
     const status = await contractService.getContractStatus(req.params.address);
-    
+
     if (!status) {
       throw notFound('Contract status');
     }
-    
+
     res.json(status);
   }),
 
@@ -118,11 +120,11 @@ export const contractControllers = {
    */
   getContractDetail: asyncHandler(async (req: Request, res: Response) => {
     const detail = await contractService.getContractDetails(req.params.address);
-    
+
     if (!detail) {
       throw notFound('Contract detail');
     }
-    
+
     res.json(detail);
   }),
 
@@ -133,7 +135,7 @@ export const contractControllers = {
   getOverview: asyncHandler(async (_req: Request, res: Response) => {
     const contracts = await contractService.getAllContracts();
     const { alerts } = await contractService.getAlerts(undefined, undefined, 5); // Latest 5 alerts
-    
+
     // Calculate KPIs
     let totalTvl = 0;
     let totalRiskScore = 0;
@@ -161,7 +163,8 @@ export const contractControllers = {
         chain: c.chain || 'ethereum-testnet-sepolia',
         chainSelectorName: c.chainSelectorName || c.chain || 'ethereum-testnet-sepolia',
         status: status?.riskLevel || 'LOW',
-        lastUpdate: status?.lastChecked ? status.lastChecked.toISOString() : new Date().toISOString()
+        lastUpdate: status?.lastChecked ? status.lastChecked.toISOString() : new Date().toISOString(),
+        latestScan: status?.latestScan || undefined
       };
     }));
 

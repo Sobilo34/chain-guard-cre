@@ -3,35 +3,61 @@
   "cronSchedule": "*/15 * * * *",
   "monitoredContracts": [
     {
-      "address": "0x1234567890123456789012345678901234567890",
-      "name": "Example DeFi Protocol",
+      "address": "0xa4d19a7b133d2a9face5b1ad407ca7b9d4ee9284",
+      "name": "BlockFinax",
       "chainSelectorName": "ethereum-testnet-sepolia",
       "riskThresholds": {
         "depegTolerance": 0.02,
         "volatilityMax": 0.15,
         "liquidityDropMax": 0.25,
         "collateralRatioMin": 1.5,
-        "gasPriceMax": 200
+        "volatility": 0.15,
+        "liquidity": 0.2,
+        "concentration": 0.25,
+        "overall": 0.3
       },
       "alertChannels": [
         "email"
       ],
-      "priceFeeds": [
-        {
-          "feedAddress": "0x694AA1769357215DE4FAC081bf1f309aDC325306",
-          "pairName": "ETH/USD",
-          "decimals": 8,
-          "heartbeat": 3600
-        }
+      "priceFeeds": []
+    },
+    {
+      "address": "0x3449cba02b741546024d0e60c870f0a235a8d585",
+      "name": "Asco Uniswap",
+      "chainSelectorName": "ethereum-mainnet",
+      "riskThresholds": {
+        "depegTolerance": 0.02,
+        "volatilityMax": 0.15,
+        "liquidityDropMax": 0.25,
+        "collateralRatioMin": 1.5,
+        "volatility": 0.15,
+        "liquidity": 0.2,
+        "concentration": 0.25,
+        "overall": 0.3
+      },
+      "alertChannels": [
+        "email"
       ],
-      "ownerAddresses": [
-        "0x0000000000000000000000000000000000000000"
+      "priceFeeds": []
+    },
+    {
+      "address": "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
+      "name": "Uni Token",
+      "chainSelectorName": "ethereum-mainnet",
+      "riskThresholds": {
+        "depegTolerance": 0.02,
+        "volatilityMax": 0.15,
+        "liquidityDropMax": 0.25,
+        "collateralRatioMin": 1.5,
+        "volatility": 0.15,
+        "liquidity": 0.2,
+        "concentration": 0.25,
+        "overall": 0.3
+      },
+      "alertChannels": [
+        "email"
       ],
-      "metadata": {
-        "description": "Example contract for testing ChainGuard Sentinel",
-        "category": "DeFi",
-        "protocol": "Example Protocol"
-      }
+      "priceFeeds": []
     }
   ],
   "gasLimit": "1000000",

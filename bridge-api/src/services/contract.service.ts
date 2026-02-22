@@ -19,8 +19,8 @@ export class ContractService {
   private alerts: Alert[] = [];
 
   constructor() {
-    // Initialize with some example data
-    this.initializeSampleData();
+    // Initialize without example data 
+    // this.initializeSampleData();
   }
 
   /**
@@ -70,7 +70,7 @@ export class ContractService {
     };
 
     this.contracts.set(address, contract);
-    
+
     // Initialize status
     this.contractStatuses.set(address, {
       address,
@@ -115,7 +115,7 @@ export class ContractService {
    */
   async deleteContract(address: string): Promise<void> {
     const lowerAddress = address.toLowerCase();
-    
+
     if (!this.contracts.has(lowerAddress)) {
       throw new Error('Contract not found');
     }
@@ -146,21 +146,21 @@ export class ContractService {
 
     if (!contract || !status) return null;
 
-    // Simulate history based on current score
+    // Provide defaulted static history layout if actual history points don't exist yet
     const currentTime = new Date();
-    const volatilityHistory = Array.from({ length: 7 }, (_, i) => {
+    const volatilityHistory = status.metrics?.volatilityHistory || Array.from({ length: 7 }, (_, i) => {
       const date = new Date(currentTime);
       date.setDate(date.getDate() - (6 - i));
       const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
       return {
         time: days[date.getDay()],
-        value: (status.metrics?.volatility || 0.1) * (1 + (Math.random() * 0.4 - 0.2)) * 100
+        value: 0
       };
     });
 
-    const riskHistory = Array.from({ length: 6 }, (_, i) => ({
+    const riskHistory = status.riskHistory || Array.from({ length: 6 }, (_, i) => ({
       time: `${i + 1}h`,
-      score: Math.max(0, Math.min(100, (status.riskScore || 50) + (Math.random() * 10 - 5)))
+      score: 0
     }));
 
     return {
@@ -170,20 +170,21 @@ export class ContractService {
       protocol: contract.protocol,
       metrics: {
         ...status.metrics,
-        price: 2847.32 + (Math.random() * 100 - 50),
-        volume24h: (status.metrics?.tvl || 1000) * 0.15,
-        liquidity: 85 + (Math.random() * 10 - 5),
+        price: status.metrics?.currentPrice || 0,
+        volume24h: status.metrics?.volume24h || 0,
+        liquidity: status.metrics?.totalLiquidity || 0,
       },
       history: {
         volatility: volatilityHistory,
         riskScore: riskHistory
       },
+      latestScan: status.latestScan,
       recentAlerts: alerts.map(a => ({
-          id: a.id,
-          time: this.formatRelativeTime(a.timestamp),
-          type: a.message,
-          severity: a.severity.toLowerCase(),
-          status: a.resolved ? 'resolved' : 'active'
+        id: a.id,
+        time: this.formatRelativeTime(a.timestamp),
+        type: a.message,
+        severity: a.severity.toLowerCase(),
+        status: a.resolved ? 'resolved' : 'active'
       })),
       aiSuggestions: [
         {
@@ -203,13 +204,13 @@ export class ContractService {
   }
 
   private formatRelativeTime(date: Date): string {
-      const diff = Date.now() - date.getTime();
-      const mins = Math.floor(diff / 60000);
-      if (mins < 1) return 'just now';
-      if (mins < 60) return `${mins} mins ago`;
-      const hours = Math.floor(mins / 60);
-      if (hours < 24) return `${hours} hours ago`;
-      return `${Math.floor(hours / 24)} days ago`;
+    const diff = Date.now() - date.getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins} mins ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours} hours ago`;
+    return `${Math.floor(hours / 24)} days ago`;
   }
 
   /**
@@ -222,7 +223,7 @@ export class ContractService {
     metrics?: any
   ): Promise<void> {
     const lowerAddress = address.toLowerCase();
-    
+
     const status: ContractStatus = {
       address: lowerAddress,
       riskLevel,
@@ -235,6 +236,20 @@ export class ContractService {
     this.contractStatuses.set(lowerAddress, status);
 
     logger.info('Contract status updated', { address: lowerAddress, riskLevel });
+  }
+
+  /**
+   * Update latest scan results for a contract
+   */
+  async updateLatestScan(address: string, scanResult: any): Promise<void> {
+    const lowerAddress = address.toLowerCase();
+    const status = this.contractStatuses.get(lowerAddress);
+
+    if (status) {
+      status.latestScan = scanResult;
+      this.contractStatuses.set(lowerAddress, status);
+      logger.info('Contract latestScan updated', { address: lowerAddress });
+    }
   }
 
   /**
@@ -280,10 +295,10 @@ export class ContractService {
 
     this.alerts.push(newAlert);
 
-    logger.info('Alert added', { 
+    logger.info('Alert added', {
       id: newAlert.id,
       address: alert.contractAddress,
-      severity: alert.severity 
+      severity: alert.severity
     });
 
     return newAlert;
@@ -329,119 +344,7 @@ export class ContractService {
    * Generate alert ID
    */
   private generateAlertId(): string {
-    return `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  /**
-   * Initialize sample data
-   */
-  private initializeSampleData(): void {
-    // Add sample contracts
-    const sampleContracts: AddContractRequest[] = [
-      {
-        address: "0x8ad599c3a0ff1de082011efddc58f1908eb6e6d8",
-        name: "Uniswap V3 Pool",
-        protocol: "Uniswap",
-        chain: "ethereum",
-        riskThresholds: {
-          volatility: 0.1,
-          liquidity: 0.2,
-          concentration: 0.2,
-          overall: 0.2,
-        },
-        priceFeeds: [
-          {
-            asset: "ETH/USD",
-            feedAddress: "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419",
-            decimals: 8,
-          },
-        ],
-        alertChannels: ["email", "slack"],
-      },
-      {
-        address: "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
-        name: "Aave Lending Pool",
-        protocol: "Aave",
-        chain: "ethereum",
-        riskThresholds: {
-          volatility: 0.15,
-          liquidity: 0.25,
-          concentration: 0.3,
-          overall: 0.3,
-        },
-        priceFeeds: [
-          {
-            asset: "AAVE/USD",
-            feedAddress: "0x547a514d5e3769680Ce22B2361c10Ea136077881",
-            decimals: 8,
-          },
-        ],
-        alertChannels: ["email"],
-      },
-      {
-        address: "0x2d9458b72551ec946c986c478a0b0d3e5e488b73",
-        name: "Curve Finance",
-        protocol: "Curve",
-        chain: "ethereum",
-        riskThresholds: {
-          volatility: 0.25,
-          liquidity: 0.3,
-          concentration: 0.4,
-          overall: 0.4,
-        },
-        priceFeeds: [
-          {
-            asset: "CRV/USD",
-            feedAddress: "0xCd627aA160A6f1D873530471b51892dAb001952e",
-            decimals: 8,
-          },
-        ],
-        alertChannels: ["email", "slack"],
-      },
-    ];
-
-    for (const contract of sampleContracts) {
-      this.addContract(contract)
-        .then(async (c) => {
-          // Add some dummy metrics and status
-          const isHighRisk = c.protocol === "Curve";
-          const isMedRisk = c.protocol === "Aave";
-          
-          await this.updateContractStatus(
-            c.address,
-            isHighRisk ? "HIGH" : (isMedRisk ? "MEDIUM" : "LOW"),
-            isHighRisk ? 85 : (isMedRisk ? 45 : 12),
-            {
-              tvl: isHighRisk ? 4200000 : (isMedRisk ? 12100000 : 8200000),
-              volatility: isHighRisk ? 0.321 : (isMedRisk ? 0.154 : 0.082),
-              liquidity: 10000000,
-            }
-          );
-
-          if (isHighRisk) {
-              await this.addAlert({
-                  contractAddress: c.address,
-                  message: 'Liquidity Drop',
-                  severity: 'HIGH'
-              });
-              await this.addAlert({
-                contractAddress: c.address,
-                message: 'TVL Change',
-                severity: 'MEDIUM'
-            });
-          }
-          if (isMedRisk) {
-            await this.addAlert({
-                contractAddress: c.address,
-                message: 'Volatility Spike',
-                severity: 'MEDIUM'
-            });
-          }
-        })
-        .catch((err) => {
-          logger.error("Failed to add sample contract", { error: err.message });
-        });
-    }
+    return `alert_${Date.now()}`;
   }
 }
 

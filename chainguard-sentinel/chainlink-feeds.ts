@@ -63,6 +63,16 @@ const SEPOLIA_FEEDS: Record<string, PriceFeedConfig> = {
   },
 };
 
+// Ethereum Mainnet
+const MAINNET_FEEDS: Record<string, PriceFeedConfig> = {
+  "ETH/USD": {
+    feedAddress: "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419",
+    pairName: "ETH/USD",
+    decimals: 8,
+    heartbeat: 3600,
+  },
+};
+
 // Polygon Amoy Testnet
 const AMOY_FEEDS: Record<string, PriceFeedConfig> = {
   "MATIC/USD": {
@@ -72,6 +82,17 @@ const AMOY_FEEDS: Record<string, PriceFeedConfig> = {
     heartbeat: 120, // 2 minutes
   },
 };
+
+// Polygon Mainnet
+const POLYGON_FEEDS: Record<string, PriceFeedConfig> = {
+  "MATIC/USD": {
+    feedAddress: "0xAB594600376Ec9fD91F8e885dADF0CE036862dE0",
+    pairName: "MATIC/USD",
+    decimals: 8,
+    heartbeat: 120,
+  },
+};
+
 
 /*********************************
  * Main Price Feed Functions
@@ -407,10 +428,12 @@ export function buildMarketDataSnapshot(
  * Gets default price feed for a chain (ETH/USD for Ethereum, MATIC/USD for Polygon, etc.)
  */
 export function getDefaultFeedForChain(chainSelectorName: string): PriceFeedConfig | null {
+  const isTestnet = chainSelectorName.includes("testnet");
+
   if (chainSelectorName.includes("ethereum")) {
-    return SEPOLIA_FEEDS["ETH/USD"];
+    return isTestnet ? SEPOLIA_FEEDS["ETH/USD"] : MAINNET_FEEDS["ETH/USD"];
   } else if (chainSelectorName.includes("polygon")) {
-    return AMOY_FEEDS["MATIC/USD"];
+    return isTestnet ? AMOY_FEEDS["MATIC/USD"] : POLYGON_FEEDS["MATIC/USD"];
   }
   return null;
 }
@@ -452,5 +475,7 @@ export function isPriceFeedStale(
  */
 export const WELL_KNOWN_FEEDS = {
   SEPOLIA: SEPOLIA_FEEDS,
+  MAINNET: MAINNET_FEEDS,
   AMOY: AMOY_FEEDS,
+  POLYGON: POLYGON_FEEDS,
 };

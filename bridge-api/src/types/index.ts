@@ -45,6 +45,8 @@ export interface ContractStatus {
   lastChecked: Date;
   metrics?: RiskMetrics;
   activeAlerts?: number;
+  riskHistory?: { time: string; score: number }[];
+  latestScan?: any;
 }
 
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -56,14 +58,17 @@ export interface RiskMetrics {
   tvl?: number;
   volume24h?: number;
   price?: number;
+  volatilityHistory?: { time: string; value: number }[];
+  currentPrice?: number;
+  totalLiquidity?: number;
 }
 
 export interface ContractDetails extends ContractStatus {
   name: string;
   chain: string;
   history?: {
-      volatility: { time: string; value: number }[];
-      riskScore: { time: string; score: number }[];
+    volatility: { time: string; value: number }[];
+    riskScore: { time: string; score: number }[];
   };
   aiSuggestions?: { title: string; description: string }[];
 }

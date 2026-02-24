@@ -20,6 +20,14 @@ router.post(
   contractControllers.addContract
 );
 
+// Discover contract info
+router.post(
+  '/discover',
+  validateBody(['address']),
+  validateEthereumAddress('address'),
+  contractControllers.discoverContract
+);
+
 // Get contract by address
 router.get(
   '/:address',

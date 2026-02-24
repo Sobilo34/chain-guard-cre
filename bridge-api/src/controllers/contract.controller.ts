@@ -129,6 +129,18 @@ export const contractControllers = {
   }),
 
   /**
+   * POST /api/contracts/discover
+   */
+  discoverContract: asyncHandler(async (req: Request, res: Response) => {
+    const { address, network } = req.body;
+    if (!address) {
+      throw new Error('Address is required');
+    }
+    const result = await contractService.discoverContract(address, network || 'sepolia');
+    res.json(result);
+  }),
+
+  /**
    * GET /api/overview
    * Dashboard summary
    */

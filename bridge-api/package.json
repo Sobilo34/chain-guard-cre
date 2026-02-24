@@ -11,10 +11,12 @@
     "test": "echo \"Tests not implemented yet\" && exit 0"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "swagger-ui-express": "^5.0.1",
+    "viem": "^2.46.3",
     "yamljs": "^0.3.0",
     "zod": "^3.25.76"
   },

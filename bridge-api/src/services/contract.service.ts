@@ -11,6 +11,8 @@ import {
   Alert,
   RiskLevel,
 } from '../types';
+import { discoveryService } from './discovery.service';
+import { NETWORKS } from '../config';
 
 export class ContractService {
   // In-memory storage (replace with database in production)
@@ -70,6 +72,10 @@ export class ContractService {
     };
 
     this.contracts.set(address, contract);
+
+    // Set contract type if available in request
+    if (request.contractType) contract.contractType = request.contractType;
+    if (request.implementationAddress) contract.implementationAddress = request.implementationAddress;
 
     // Initialize status
     this.contractStatuses.set(address, {
@@ -338,6 +344,39 @@ export class ContractService {
     return this.alerts.filter(
       a => a.contractAddress.toLowerCase() === address.toLowerCase() && !a.resolved
     ).length;
+  }
+
+  /**
+   * Discover and intelligently suggest contract configuration
+   */
+  async discoverContract(address: string, network: string = 'sepolia'): Promise<any> {
+    const discovery = await discoveryService.discover(address, network);
+    const netConfig = NETWORKS[network];
+
+    // Prepare suggested AddContractRequest
+    const suggestedRequest: AddContractRequest = {
+      address: discovery.address,
+      name: discovery.name,
+      protocol: discovery.type === 'Normal' ? 'Generic' : discovery.type,
+      chain: network,
+      chainSelectorName: netConfig?.selector || network,
+      chainName: netConfig?.name || network,
+      priceFeeds: discovery.suggestedFeeds.map(f => ({
+        asset: f.asset,
+        feedAddress: f.feedAddress
+      })),
+      riskThresholds: {
+        volatility: 0.15,
+        liquidity: 0.20,
+        concentration: 0.25,
+        overall: 0.30,
+      }
+    };
+
+    return {
+      discovery,
+      suggestedRequest
+    };
   }
 
   /**

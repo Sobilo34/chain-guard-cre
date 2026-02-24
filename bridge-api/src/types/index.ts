@@ -21,6 +21,8 @@ export interface MonitoredContract {
   priceFeeds?: PriceFeed[];
   alertChannels?: AlertChannel[];
   addedAt?: Date;
+  contractType?: 'Normal' | 'Proxy' | 'Diamond' | 'Other';
+  implementationAddress?: string;
 }
 
 export interface RiskThresholds {
@@ -100,6 +102,8 @@ export interface AddContractRequest {
   riskThresholds?: RiskThresholds;
   priceFeeds?: PriceFeed[];
   alertChannels?: AlertChannel[];
+  contractType?: 'Normal' | 'Proxy' | 'Diamond' | 'Other';
+  implementationAddress?: string;
 }
 
 export interface UpdateContractRequest {

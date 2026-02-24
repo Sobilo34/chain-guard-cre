@@ -45,7 +45,25 @@ export const scanControllers = {
       contractsQueued: contractsToScan.length,
       data: workflowResult.result,
     };
-    
+
+    // If the CRE workflow reported an error payload, surface it clearly to the frontend
+    const hasError =
+      response.data &&
+      typeof response.data === 'object' &&
+      (response.data.error || response.data.output?.error);
+
+    if (hasError) {
+      const message =
+        response.data.error ||
+        response.data.output?.error ||
+        'CRE workflow failed';
+      return res.status(500).json({
+        ...response,
+        status: 'failed',
+        error: message,
+      });
+    }
+
     res.status(workflowResult.status === 'completed' ? 200 : 202).json(response);
   }),
 };

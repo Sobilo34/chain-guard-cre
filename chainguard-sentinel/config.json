@@ -1,46 +1,7 @@
 {
   "geminiModel": "gemini-2.0-flash",
   "cronSchedule": "*/15 * * * *",
-  "monitoredContracts": [
-    {
-      "address": "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
-      "name": "Uniswap(UNI)",
-      "chainSelectorName": "ethereum-mainnet",
-      "riskThresholds": {
-        "depegTolerance": 0.02,
-        "volatilityMax": 0.15,
-        "liquidityDropMax": 0.25,
-        "collateralRatioMin": 1.5,
-        "volatility": 0.15,
-        "liquidity": 0.2,
-        "concentration": 0.25,
-        "overall": 0.3
-      },
-      "alertChannels": [
-        "email"
-      ],
-      "priceFeeds": []
-    },
-    {
-      "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-      "name": "USDC Token",
-      "chainSelectorName": "ethereum-mainnet",
-      "riskThresholds": {
-        "depegTolerance": 0.05,
-        "volatilityMax": 0.2,
-        "liquidityDropMax": 0.3,
-        "collateralRatioMin": 1,
-        "volatility": 0.1,
-        "liquidity": 0.2,
-        "concentration": 0.3,
-        "overall": 0.4
-      },
-      "alertChannels": [
-        "email"
-      ],
-      "priceFeeds": []
-    }
-  ],
+  "monitoredContracts": [],
   "gasLimit": "1000000",
   "emailConfig": {
     "from": "alerts@chainguard.io",

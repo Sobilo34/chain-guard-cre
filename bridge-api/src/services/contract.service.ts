@@ -9,10 +9,10 @@ import {
   AddContractRequest,
   UpdateContractRequest,
   Alert,
-  RiskLevel,
 } from '../types';
 import { discoveryService } from './discovery.service';
 import { NETWORKS } from '../config';
+import { badRequest } from '../middleware/errorHandler';
 
 export class ContractService {
   // In-memory storage (replace with database in production)
@@ -48,7 +48,7 @@ export class ContractService {
 
     // Check if already exists
     if (this.contracts.has(address)) {
-      throw new Error('Contract already exists');
+      throw badRequest('Contract already exists');
     }
 
     const contract: MonitoredContract = {
@@ -80,8 +80,10 @@ export class ContractService {
     // Initialize status
     this.contractStatuses.set(address, {
       address,
-      riskLevel: 'LOW',
+      riskLevel: request.initialAssessment?.riskLevel || 'LOW',
+      riskScore: request.initialAssessment?.riskScore || 0,
       lastChecked: new Date(),
+      latestScan: request.initialAssessment || null
     });
 
     logger.info('Contract added', { address, name: contract.name });
@@ -373,9 +375,28 @@ export class ContractService {
       }
     };
 
+    // Prepare a preliminary assessment to avoid "Awaiting" state
+    const preliminaryAssessment = {
+      riskLevel: 'LOW',
+      riskType: 'CUSTOM',
+      confidence: 5000,
+      reasoning: `Initial scan for ${discovery.name} on ${netConfig?.name || network}. Managed assets detected: ${discovery.nativeBalance ? discovery.nativeBalance.balance + ' ' + discovery.nativeBalance.symbol : '0 ETH'} and ${discovery.tokens.length} ERC-20 tokens. Full monitoring active.`,
+      cause: 'Initial Discovery',
+      consequences: 'System is calibrating risk thresholds.',
+      nextSteps: ['Wait for real-time monitoring results'],
+      suggestedActions: ['Monitor balance fluctuations'],
+      affectedMetrics: ['tvl', 'liquidity'],
+      estimatedImpact: 'None',
+      mitigationStrategy: 'Automated monitoring enabled'
+    };
+
     return {
-      discovery,
-      suggestedRequest
+      discovery: {
+        ...discovery,
+        nativeBalance: discovery.nativeBalance
+      },
+      suggestedRequest,
+      preliminaryAssessment
     };
   }
 

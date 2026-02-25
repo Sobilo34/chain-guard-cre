@@ -104,6 +104,7 @@ export interface AddContractRequest {
   alertChannels?: AlertChannel[];
   contractType?: 'Normal' | 'Proxy' | 'Diamond' | 'Other';
   implementationAddress?: string;
+  initialAssessment?: any;
 }
 
 export interface UpdateContractRequest {

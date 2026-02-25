@@ -29,6 +29,11 @@ export interface DiscoveryResult {
     suggestedFeeds: SuggestedFeed[];
     abi?: any[];
     isVerified: boolean;
+    nativeBalance?: {
+        symbol: string;
+        balance: string;
+        balanceRaw: string;
+    };
 }
 
 export interface DiscoveredToken {
@@ -64,6 +69,20 @@ export class DiscoveryService {
             throw new Error('Address is an EOA or not a contract on this network');
         }
 
+        // 1.5. Fetch Native Balance
+        let nativeBalanceResult;
+        try {
+            const balance = await client.getBalance({ address: contractAddress });
+            nativeBalanceResult = {
+                symbol: network.toLowerCase().includes('polygon') ? 'MATIC' : 'ETH',
+                balance: formatUnits(balance, 18),
+                balanceRaw: balance.toString()
+            };
+            logger.info('Discovered native balance', { balance: nativeBalanceResult.balance });
+        } catch (error) {
+            logger.warn('Failed to fetch native balance', { error });
+        }
+
         // 2. Detect Contract Type
         const typeInfo = await this.detectType(client, contractAddress);
 
@@ -89,6 +108,7 @@ export class DiscoveryService {
             tokens,
             suggestedFeeds,
             isVerified: false,
+            nativeBalance: nativeBalanceResult
         };
     }
 
@@ -113,7 +133,8 @@ export class DiscoveryService {
         Address: ${address}
         Network: ${network}
         Type: ${type}
-        Tokens Held: ${JSON.stringify(tokens.map(t => ({ symbol: t.symbol, balance: t.balance })))}
+        Native Balance: ${tokens.find(t => t.address === 'native')?.balance || '0'}
+        Tokens Held: ${JSON.stringify(tokens.filter(t => t.address !== 'native').map(t => ({ symbol: t.symbol, balance: t.balance })))}
 
         Return ONLY a JSON object:
         { "name": "Protocol Name", "suggestions": ["suggestion 1", "suggestion 2"] }
@@ -244,23 +265,46 @@ export class DiscoveryService {
 
     private getCommonTokens(network: string): string[] {
         // Return a list of common token addresses for the network
-        if (network.toLowerCase() === 'sepolia') {
+        const net = network.toLowerCase();
+        if (net === 'sepolia' || net === 'ethereum-testnet-sepolia') {
             return [
                 '0x779877A7B0D9E8603169DdbD7836e478b4624789', // LINK
                 '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', // UNI
                 '0x94a101C247558622CB1837F8E3C5791E8e384C66', // USDC
+                '0xaa8e23fb1079ea71e0a56f48a2aa51851d8433d0', // PUSDT
+                '0xfff9976782d46cc05630d1f6eBaf18d399576024', // WETH
+            ];
+        } else if (net === 'mainnet' || net === 'ethereummainnet') {
+            return [
+                '0x514910771af9ca656af840dff83e8264ecf986ca', // LINK
+                '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
+                '0xdac17f958d2ee523a2206206994597c13d831ec7', // USDT
+                '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599', // WBTC
+                '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
             ];
         }
         return [];
     }
 
     private getWellKnownFeeds(network: string): Record<string, string> {
-        if (network.toLowerCase() === 'sepolia') {
+        const net = network.toLowerCase();
+        if (net === 'sepolia' || net === 'ethereum-testnet-sepolia') {
             return {
                 'LINK': '0xc59E35335d05115184891401E7A4468f70217d03',
                 'UNI': '0x103734a340F66373e33Be57aB7242138a0D03De5',
                 'USDC': '0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E',
                 'ETH': '0x694AA1769357215DE4FAC081bf1f309aDC325306',
+                'WETH': '0x694AA1769357215DE4FAC081bf1f309aDC325306',
+                'PUSDT': '0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E', // Mapping to USDC for demo if direct feed not found
+            };
+        } else if (net === 'mainnet' || net === 'ethereummainnet') {
+            return {
+                'LINK': '0x2c1d072e956affC0D435Cb7AC38EF18d24d9127c',
+                'USDC': '0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6',
+                'USDT': '0x3E7d1eA13978D9E831cf0AF209A321Aa333D7266',
+                'WBTC': '0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c',
+                'WETH': '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419',
+                'ETH': '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419',
             };
         }
         return {};

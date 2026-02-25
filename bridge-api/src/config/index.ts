@@ -47,7 +47,7 @@ export const NETWORKS: Record<string, { chain: any, rpcUrl: string, name: string
   },
   sepolia: {
     chain: sepolia,
-    rpcUrl: 'https://ethereum-sepolia-rpc.publicnode.com',
+    rpcUrl: 'https://rpc.ankr.com/eth_sepolia',
     name: 'Ethereum Sepolia',
     selector: 'ethereum-testnet-sepolia'
   },

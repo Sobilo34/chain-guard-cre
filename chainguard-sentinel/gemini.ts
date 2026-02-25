@@ -3,7 +3,9 @@
 // Uses CRE HTTP capability to query Gemini with structured prompts.
 
 import {
+  HTTPClient,
   type Runtime,
+  type HTTPSendRequester,
 } from "@chainlink/cre-sdk";
 import fs from "node:fs";
 import path from "node:path";
@@ -127,11 +129,11 @@ function tryLoadGeminiKeyFromLocalFiles(): string {
       if (!fs.existsSync(filePath)) continue;
       const raw = fs.readFileSync(filePath, "utf8");
 
-      const envMatch = raw.match(/^\s*GEMINI_API_KEY\s*=\s*['\"]?([^'\"\n]+)['\"]?\s*$/m);
-      if (envMatch?.[1]) return envMatch[1].trim();
+      const envMatch = raw.match(/^\s*(OPENROUTER_API_KEY|GEMINI_API_KEY)\s*=\s*['\"]?([^'\"\n]+)['\"]?\s*$/m);
+      if (envMatch?.[2]) return envMatch[2].trim();
 
-      const yamlMatch = raw.match(/^\s*GEMINI_API_KEY\s*:\s*['\"]?([^'\"\n]+)['\"]?\s*$/m);
-      if (yamlMatch?.[1]) return yamlMatch[1].trim();
+      const yamlMatch = raw.match(/^\s*(OPENROUTER_API_KEY|GEMINI_API_KEY)\s*:\s*['\"]?([^'\"\n]+)['\"]?\s*$/m);
+      if (yamlMatch?.[2]) return yamlMatch[2].trim();
     } catch {
     }
   }
@@ -144,7 +146,7 @@ function tryLoadGeminiKeyFromLocalFiles(): string {
  *********************************/
 
 /**
- * Queries Gemini AI to analyze market risks for a smart contract.
+ * Queries OpenRouter AI to analyze market risks for a smart contract.
  * Sends structured data and receives risk assessment with confidence scores.
  * 
  * @param runtime - CRE runtime instance with secrets
@@ -154,7 +156,7 @@ function tryLoadGeminiKeyFromLocalFiles(): string {
  * @param marketData - Market metrics snapshot
  * @param contractState - On-chain contract state
  * @param riskThresholds - Configured risk thresholds
- * @returns Gemini risk analysis response
+ * @returns Risk analysis response
  */
 export async function analyzeRiskWithGemini(
   runtime: Runtime<Config>,
@@ -166,49 +168,40 @@ export async function analyzeRiskWithGemini(
   riskThresholds: Record<string, any>
 ): Promise<GeminiRiskResponse> {
   try {
-    runtime.log(`Querying Gemini AI for risk analysis: ${contractName}`);
+    runtime.log(`Querying OpenRouter AI for risk analysis: ${contractName}`);
 
-    // Get Gemini API key from secrets, then fallback to config.
-    let geminiApiKeyValue = "";
+    // Get API key from secrets, then fallback to config, then env.
+    let apiKeyValue = "";
     try {
-      const geminiApiKey = runtime.getSecret({ id: "GEMINI_API_KEY" }).result();
-      geminiApiKeyValue = geminiApiKey.value || "";
+      const apiKey = runtime.getSecret({ id: "OPENROUTER_API_KEY" }).result();
+      apiKeyValue = apiKey.value || "";
     } catch {
-      geminiApiKeyValue = "";
+      apiKeyValue = "";
     }
 
-    if (!geminiApiKeyValue) {
-      geminiApiKeyValue =
-        (runtime.config as Config & { geminiApiKey?: string }).geminiApiKey || "";
+    if (!apiKeyValue) {
+      apiKeyValue = (runtime.config as any).openRouterApiKey || "";
     }
 
-    if (!geminiApiKeyValue) {
-      geminiApiKeyValue =
-        ((globalThis as any)?.process?.env?.GEMINI_API_KEY as string | undefined) || "";
+    if (!apiKeyValue) {
+      apiKeyValue = ((globalThis as any)?.process?.env?.OPENROUTER_API_KEY as string | undefined) || "";
     }
 
-    if (!geminiApiKeyValue) {
-      geminiApiKeyValue = tryLoadGeminiKeyFromLocalFiles();
+    if (!apiKeyValue) {
+      // Fallback to legacy key name if updated key not found
+      try {
+        const apiKey = runtime.getSecret({ id: "GEMINI_API_KEY" }).result();
+        apiKeyValue = apiKey.value || "";
+      } catch { }
     }
 
-    if (!geminiApiKeyValue) {
-      runtime.log("Gemini key missing in runtime secrets/config, using fallback risk response");
-      return {
-        riskLevel: "LOW",
-        riskType: "CUSTOM",
-        confidence: 0,
-        reasoning: "Gemini API key unavailable; fallback heuristic used",
-        cause: "Missing API Configuration",
-        consequences: "AI-driven risk detection is disabled",
-        nextSteps: ["Configure GEMINI_API_KEY"],
-        suggestedActions: [
-          "Set GEMINI_API_KEY in CRE secrets",
-          "Optionally set geminiApiKey in local config for simulation",
-        ],
-        affectedMetrics: [],
-        estimatedImpact: "Limited AI signal; deterministic checks still applied",
-        mitigationStrategy: "Add Gemini API credentials to enable advanced risk analysis",
-      };
+    if (!apiKeyValue) {
+      apiKeyValue = tryLoadGeminiKeyFromLocalFiles(); // This helper checks both keys now
+    }
+
+    if (!apiKeyValue) {
+      runtime.log("OpenRouter key missing in runtime secrets/config, using fallback risk response");
+      return getFallbackResponse("Missing API Configuration");
     }
 
     // Build user prompt with actual data
@@ -221,17 +214,12 @@ export async function analyzeRiskWithGemini(
       riskThresholds
     );
 
-    runtime.log(`User prompt constructed. Length: ${userPrompt.length} chars`);
-
-
-    // Use fetch API natively inside the Wasm/Deno guest sandbox
-    const result = await sendGeminiRequestAsync(geminiApiKeyValue, userPrompt, runtime);
-
-    runtime.log(`Gemini API status: ${result.statusCode}`);
+    // Execute OpenRouter request
+    const result = await sendOpenRouterRequestAsync(apiKeyValue, userPrompt, runtime);
 
     if (result.statusCode !== 200) {
-      runtime.log(`Gemini API Error details: ${result.geminiResponse.substring(0, 500)}`);
-      throw new Error(`Gemini API returned status ${result.statusCode}`);
+      runtime.log(`OpenRouter API Error details: ${result.geminiResponse.substring(0, 500)}`);
+      throw new Error(`OpenRouter API returned status ${result.statusCode}`);
     }
 
     // Parse and validate response
@@ -245,111 +233,77 @@ export async function analyzeRiskWithGemini(
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    runtime.log(`Error analyzing risk with Gemini: ${msg}`);
-
-    // Return safe fallback response
-    return {
-      riskLevel: "LOW",
-      riskType: "CUSTOM",
-      confidence: 0,
-      reasoning: `Analysis failed: ${msg}`,
-      cause: "Internal Analysis Error",
-      consequences: "Specific risk factors could not be evaluated",
-      nextSteps: ["Retry analysis", "Check API connectivity"],
-      suggestedActions: ["Manual review required"],
-      affectedMetrics: [],
-      estimatedImpact: "Unknown due to analysis failure",
-      mitigationStrategy: "Verify network connectivity and Gemini API quota",
-    };
+    runtime.log(`Error analyzing risk with AI: ${msg}`);
+    return getFallbackResponse(`Analysis failed: ${msg}`);
   }
 }
 
-/*********************************
- * HTTP Request Builder
- *********************************/
+function getFallbackResponse(reason: string): GeminiRiskResponse {
+  return {
+    riskLevel: "LOW",
+    riskType: "CUSTOM",
+    confidence: 0,
+    reasoning: reason,
+    cause: "Internal Analysis Error",
+    consequences: "AI-driven risk detection is disabled",
+    nextSteps: ["Configure OPENROUTER_API_KEY"],
+    suggestedActions: ["Set OPENROUTER_API_KEY in CRE secrets"],
+    affectedMetrics: [],
+    estimatedImpact: "Unknown due to analysis failure",
+    mitigationStrategy: "Enable OpenRouter API to allow advanced analysis",
+  };
+}
 
-/**
- * Builds and executes HTTP request to Gemini API.
- * Constructs JSON payload with system instructions and user prompt.
- */
-/**
- * Performs a blocking native fetch call to Gemini API wrapper.
- * (Note: In CRE Deno environment, we can use top-level blocking or await).
- */
-async function sendGeminiRequestAsync(apiKey: string, userPrompt: string, runtime: Runtime<Config>): Promise<GeminiResponse> {
-  const requestPayload: GeminiApiRequest = {
-    system_instruction: {
-      parts: [{ text: SYSTEM_PROMPT }],
-    },
-    tools: [
-      {
-        googleSearchRetrieval: {
-          dynamicRetrievalConfig: {
-            mode: "MODE_DYNAMIC",
-            dynamicThreshold: 0.3,
-          },
-        },
-      },
+async function sendOpenRouterRequestAsync(apiKey: string, userPrompt: string, runtime: Runtime<Config>): Promise<GeminiResponse> {
+  const model = runtime.config.geminiModel || "google/gemini-2.0-flash-001";
+  const apiUrl = "https://openrouter.ai/api/v1/chat/completions";
+
+  const requestPayload = {
+    model: model,
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: userPrompt }
     ],
-    contents: [
-      {
-        parts: [{ text: userPrompt }],
-      },
-    ],
+    response_format: { type: "json_object" }
   };
 
-  const modelCandidates = [
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-exp",
-    "gemini-1.5-pro",
-    "gemini-1.5-flash"
-  ];
+  const httpClient = new HTTPClient();
 
-  let statusCode = 0;
-  let rawJsonString = "";
+  const response = httpClient.sendRequest(
+    runtime,
+    (sendRequester: HTTPSendRequester) => {
+      return sendRequester.sendRequest({
+        method: "POST",
+        url: apiUrl,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+          "HTTP-Referer": "https://chainguard.sentinel",
+          "X-Title": "ChainGuard Sentinel",
+        },
+        body: Buffer.from(JSON.stringify(requestPayload)).toString("base64"),
+      }).result();
+    },
+    ((responses: any[]) => responses[0]) as any
+  )().result();
 
-  for (const model of modelCandidates) {
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestPayload),
-    });
-
-    statusCode = response.status;
-    rawJsonString = await response.text();
-
-    if (statusCode === 200) {
-      break;
-    }
-
-    const lower = rawJsonString.toLowerCase();
-    const isModelError = statusCode === 404 && (lower.includes("not found") || lower.includes("not supported"));
-    if (!isModelError) {
-      break;
-    }
-  }
+  const statusCode = response.statusCode;
+  const rawResponseString = new TextDecoder().decode(response.body);
 
   if (statusCode !== 200) {
-    throw new Error(`Gemini API error: ${statusCode} - ${rawJsonString.substring(0, 200)}`);
+    throw new Error(`OpenRouter API error: ${statusCode} - ${rawResponseString.substring(0, 200)}`);
   }
 
-  // Parse response
-  const apiResponse: GeminiApiResponse = JSON.parse(rawJsonString);
-
-  const geminiResponse =
-    apiResponse.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-  const responseId = apiResponse.responseId || "unknown";
-  const tokensUsed = apiResponse.usageMetadata?.totalTokenCount;
+  // Parse response (OpenAI format)
+  const apiResponse = JSON.parse(rawResponseString);
+  const content = apiResponse.choices?.[0]?.message?.content || "{}";
+  const tokensUsed = apiResponse.usage?.total_tokens;
 
   return {
     statusCode,
-    geminiResponse,
-    responseId,
-    rawJsonString,
+    geminiResponse: content,
+    responseId: apiResponse.id || "unknown",
+    rawJsonString: rawResponseString,
     tokensUsed,
   };
 }

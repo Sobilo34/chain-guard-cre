@@ -7,6 +7,7 @@ import {
   type Runtime,
   getNetwork,
   bytesToHex,
+  encodeCallMsg,
 } from "@chainlink/cre-sdk";
 import {
   type Address,
@@ -15,6 +16,7 @@ import {
   parseAbi,
   type Abi,
   formatUnits,
+  zeroAddress,
 } from "viem";
 import type { Config, MonitoredContract, ContractStateData } from "./types";
 
@@ -138,8 +140,8 @@ export function fetchContractState(
         if (balance > 0n) {
           stateData.tokenBalances.push({
             token,
-            balance: balance.toString(),
-            balanceFormatted: formatUnits(balance, 18), // Rough estimate, ideally fetch decimals
+            balance: balance,
+            balanceFormatted: parseFloat(formatUnits(balance, 18)), // Rough estimate, ideally fetch decimals
           });
         }
       }
@@ -223,9 +225,12 @@ function fetchCustomFunctions(
       });
 
       // Execute call
-      const callResult = evmClient.read({
-        to: contractAddress,
-        data: callData as `0x${string}`,
+      const callResult = evmClient.callContract(runtime, {
+        call: encodeCallMsg({
+          from: zeroAddress,
+          to: contractAddress,
+          data: callData as `0x${string}`,
+        }),
       }).result();
 
       // Decode result
@@ -264,11 +269,14 @@ function detectAndFetchProtocolData(
 ): Record<string, any> | undefined {
   try {
     // Try Uniswap V2
-    const reserves = evmClient.read({
-      to: address,
-      data: encodeFunctionData({
-        abi: getUniswapV2PairAbi(),
-        functionName: "getReserves",
+    const reserves = evmClient.callContract(runtime, {
+      call: encodeCallMsg({
+        from: zeroAddress,
+        to: address,
+        data: encodeFunctionData({
+          abi: getUniswapV2PairAbi(),
+          functionName: "getReserves",
+        }),
       }),
     }).result();
 
@@ -412,9 +420,12 @@ export function fetchTokenBalance(
       args: [holderAddress],
     });
 
-    const result = evmClient.read({
-      to: tokenAddress,
-      data: callData as `0x${string}`,
+    const result = evmClient.callContract(runtime, {
+      call: encodeCallMsg({
+        from: zeroAddress,
+        to: tokenAddress,
+        data: callData as `0x${string}`,
+      }),
     }).result();
 
     const balance = decodeFunctionResult({

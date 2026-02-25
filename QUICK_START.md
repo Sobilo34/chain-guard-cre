@@ -56,7 +56,8 @@ Edit `config.json`:
 ## 4. Test Locally (1 minute)
 
 ```bash
-cre workflow run local-simulation
+in the cre chain-guard-cre directory
+cre workflow simulate chainguard-sentinel -T local-simulation
 ```
 
 You should see:

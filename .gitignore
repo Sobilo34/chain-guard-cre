@@ -15,7 +15,9 @@ build/
 .env
 .env.local
 .env.*.local
+**/.env
 secrets.yaml
+chainguard-sentinel/config.json
 *.key
 *.pem
 

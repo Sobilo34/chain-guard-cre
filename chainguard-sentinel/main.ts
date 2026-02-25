@@ -63,6 +63,7 @@ const createOnCronTrigger = (config: Config) => {
         const contractState = fetchContractState(runtime, contract);
         const marketData = buildMarketDataSnapshot(runtime, contract);
 
+        runtime.log(`Starting AI analysis for ${contract.name}`);
         const aiAnalysis = await analyzeRiskWithGemini(
           runtime,
           contract.name,
@@ -72,6 +73,7 @@ const createOnCronTrigger = (config: Config) => {
           contractState,
           contract.riskThresholds
         );
+        runtime.log(`AI analysis completed for ${contract.name}. Level: ${aiAnalysis.riskLevel}`);
 
         const assessment = evaluateRisk(
           runtime,
@@ -199,7 +201,3 @@ export async function main() {
   const runner = await Runner.newRunner<Config>({ configSchema });
   await runner.run(initWorkflow);
 }
-
-
-
-

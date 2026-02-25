@@ -9,6 +9,7 @@ import {
   AddContractRequest,
   UpdateContractRequest,
   Alert,
+  RiskLevel,
 } from '../types';
 import { discoveryService } from './discovery.service';
 import { NETWORKS } from '../config';

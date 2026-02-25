@@ -221,9 +221,8 @@ export async function analyzeRiskWithGemini(
       riskThresholds
     );
 
-    runtime.log(`Prompt length: ${userPrompt.length} chars`);
+    runtime.log(`User prompt constructed. Length: ${userPrompt.length} chars`);
 
-    runtime.log(`Prompt length: ${userPrompt.length} chars`);
 
     // Use fetch API natively inside the Wasm/Deno guest sandbox
     const result = await sendGeminiRequestAsync(geminiApiKeyValue, userPrompt, runtime);
@@ -231,7 +230,8 @@ export async function analyzeRiskWithGemini(
     runtime.log(`Gemini API status: ${result.statusCode}`);
 
     if (result.statusCode !== 200) {
-      throw new Error(`Gemini API returned status ${result.statusCode}: ${result.geminiResponse}`);
+      runtime.log(`Gemini API Error details: ${result.geminiResponse.substring(0, 500)}`);
+      throw new Error(`Gemini API returned status ${result.statusCode}`);
     }
 
     // Parse and validate response

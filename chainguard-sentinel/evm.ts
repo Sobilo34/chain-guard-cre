@@ -117,9 +117,33 @@ export function fetchContractState(
       evmClient,
       contract.address as Address
     );
-    
+
     if (detectedData) {
       stateData.customState = detectedData;
+    }
+
+    // NEW: Fetch common token balances for the contract
+    const commonTokens = getCommonTokens(contract.chainSelectorName) as Address[];
+    if (commonTokens.length > 0) {
+      runtime.log(`Fetching balances for ${commonTokens.length} common tokens`);
+      const tokenBalances = batchFetchTokenBalances(
+        runtime,
+        evmClient,
+        commonTokens,
+        contract.address as Address
+      );
+
+      stateData.tokenBalances = [];
+      for (const [token, balance] of tokenBalances) {
+        if (balance > 0n) {
+          stateData.tokenBalances.push({
+            token,
+            balance: balance.toString(),
+            balanceFormatted: formatUnits(balance, 18), // Rough estimate, ideally fetch decimals
+          });
+        }
+      }
+      runtime.log(`Found ${stateData.tokenBalances.length} tokens with non-zero balance`);
     }
 
     runtime.log(`Successfully fetched state for ${contract.name}`);
@@ -444,4 +468,31 @@ export function calculateTVL(
   }
 
   return tvl;
+}
+
+/**
+ * Helper to get common tokens for a chain
+ */
+function getCommonTokens(chainSelectorName: string): string[] {
+  const net = chainSelectorName.toLowerCase();
+
+  if (net.includes('sepolia')) {
+    return [
+      '0x779877A7B0D9E8603169DdbD7836e478b4624789', // LINK
+      '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', // UNI
+      '0x94a101C247558622CB1837F8E3C5791E8e384C66', // USDC
+      '0xaa8e23fb1079ea71e0a56f48a2aa51851d8433d0', // PUSDT
+      '0xfff9976782d46cc05630d1f6eBaf18d399576024', // WETH
+    ];
+  } else if (net.includes('ethereum-mainnet') || net === 'ethereum-mainnet') {
+    return [
+      '0x514910771af9ca656af840dff83e8264ecf986ca', // LINK
+      '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
+      '0xdac17f958d2ee523a2206206994597c13d831ec7', // USDT
+      '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599', // WBTC
+      '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
+    ];
+  }
+
+  return [];
 }

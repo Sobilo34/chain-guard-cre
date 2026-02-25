@@ -5,14 +5,31 @@
 # Configures DON family, account ownership, and RPC endpoints.
 
 # ==========================================================================
+# ==========================================================================
 local-simulation:
   rpcs:
+    - chain-name: ethereum-mainnet
+      url: https://ethereum-rpc.publicnode.com
+    - chain-name: arbitrum-mainnet
+      url: https://arbitrum-one-rpc.publicnode.com
+    - chain-name: optimism-mainnet
+      url: https://optimism-rpc.publicnode.com
+    - chain-name: base-mainnet
+      url: https://base-rpc.publicnode.com
+    - chain-name: polygon-mainnet
+      url: https://polygon-bor-rpc.publicnode.com
     - chain-name: ethereum-testnet-sepolia
       url: https://ethereum-sepolia-rpc.publicnode.com
+    - chain-name: ethereum-testnet-holesky
+      url: https://ethereum-holesky-rpc.publicnode.com
     - chain-name: polygon-testnet-amoy
       url: https://polygon-amoy-bor-rpc.publicnode.com
-    - chain-name: ethereum-mainnet
-      url: https://eth.llamarpc.com
+    - chain-name: arbitrum-testnet-sepolia
+      url: https://arbitrum-sepolia-rpc.publicnode.com
+    - chain-name: optimism-testnet-sepolia
+      url: https://optimism-sepolia-rpc.publicnode.com
+    - chain-name: base-testnet-sepolia
+      url: https://base-sepolia-rpc.publicnode.com
 
 # ==========================================================================
 staging:
@@ -21,10 +38,8 @@ staging:
   rpcs:
     - chain-name: ethereum-testnet-sepolia
       url: https://ethereum-sepolia-rpc.publicnode.com
-    - chain-name: polygon-testnet-amoy
-      url: https://polygon-amoy-bor-rpc.publicnode.com
     - chain-name: ethereum-mainnet
-      url: https://eth.llamarpc.com
+      url: https://ethereum-rpc.publicnode.com
 
 # ==========================================================================
 production:
@@ -32,6 +47,6 @@ production:
     don-family: "zone-a"
   rpcs:
     - chain-name: ethereum-mainnet
-      url: https://eth.llamarpc.com
+      url: https://ethereum-rpc.publicnode.com
     - chain-name: polygon-mainnet
-      url: https://polygon-rpc.com
+      url: https://polygon-bor-rpc.publicnode.com

@@ -16886,6 +16886,13 @@ init_exports();
 var zeroAddress = "0x0000000000000000000000000000000000000000";
 init_decodeFunctionResult();
 init_encodeFunctionData();
+var getErc20Abi = () => parseAbi([
+  "function balanceOf(address owner) view returns (uint256)",
+  "function totalSupply() view returns (uint256)",
+  "function decimals() view returns (uint8)",
+  "function name() view returns (string)",
+  "function symbol() view returns (string)"
+]);
 var getUniswapV2PairAbi = () => parseAbi([
   "function getReserves() view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)",
   "function token0() view returns (address)",
@@ -16920,6 +16927,22 @@ function fetchContractState(runtime2, contract) {
     const detectedData = detectAndFetchProtocolData(runtime2, evmClient, contract.address);
     if (detectedData) {
       stateData.customState = detectedData;
+    }
+    const commonTokens = getCommonTokens(contract.chainSelectorName);
+    if (commonTokens.length > 0) {
+      runtime2.log(`Fetching balances for ${commonTokens.length} common tokens`);
+      const tokenBalances = batchFetchTokenBalances(runtime2, evmClient, commonTokens, contract.address);
+      stateData.tokenBalances = [];
+      for (const [token, balance] of tokenBalances) {
+        if (balance > 0n) {
+          stateData.tokenBalances.push({
+            token,
+            balance: balance.toString(),
+            balanceFormatted: formatUnits(balance, 18)
+          });
+        }
+      }
+      runtime2.log(`Found ${stateData.tokenBalances.length} tokens with non-zero balance`);
     }
     runtime2.log(`Successfully fetched state for ${contract.name}`);
     return stateData;
@@ -17002,6 +17025,57 @@ function detectAndFetchProtocolData(runtime2, evmClient, address) {
       };
     }
   } catch (err) {}
+}
+function fetchTokenBalance(runtime2, evmClient, tokenAddress, holderAddress) {
+  try {
+    const callData = encodeFunctionData({
+      abi: getErc20Abi(),
+      functionName: "balanceOf",
+      args: [holderAddress]
+    });
+    const result = evmClient.read({
+      to: tokenAddress,
+      data: callData
+    }).result();
+    const balance = decodeFunctionResult({
+      abi: getErc20Abi(),
+      functionName: "balanceOf",
+      data: bytesToHex(result.data || new Uint8Array)
+    });
+    return balance;
+  } catch (err) {
+    runtime2.log(`Error fetching token balance: ${err}`);
+    return 0n;
+  }
+}
+function batchFetchTokenBalances(runtime2, evmClient, tokenAddresses, holderAddress) {
+  const balances = new Map;
+  for (const tokenAddress of tokenAddresses) {
+    const balance = fetchTokenBalance(runtime2, evmClient, tokenAddress, holderAddress);
+    balances.set(tokenAddress, balance);
+  }
+  return balances;
+}
+function getCommonTokens(chainSelectorName) {
+  const net = chainSelectorName.toLowerCase();
+  if (net.includes("sepolia")) {
+    return [
+      "0x779877A7B0D9E8603169DdbD7836e478b4624789",
+      "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
+      "0x94a101C247558622CB1837F8E3C5791E8e384C66",
+      "0xaa8e23fb1079ea71e0a56f48a2aa51851d8433d0",
+      "0xfff9976782d46cc05630d1f6eBaf18d399576024"
+    ];
+  } else if (net.includes("ethereum-mainnet") || net === "ethereum-mainnet") {
+    return [
+      "0x514910771af9ca656af840dff83e8264ecf986ca",
+      "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "0xdac17f958d2ee523a2206206994597c13d831ec7",
+      "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+      "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+    ];
+  }
+  return [];
 }
 var getChainlinkAggregatorV3Abi = () => parseAbi([
   "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)",
@@ -17702,12 +17776,12 @@ async function analyzeRiskWithGemini(runtime2, contractName, contractAddress, ch
       };
     }
     const userPrompt = buildUserPrompt(contractName, contractAddress, chainName, marketData, contractState, riskThresholds);
-    runtime2.log(`Prompt length: ${userPrompt.length} chars`);
-    runtime2.log(`Prompt length: ${userPrompt.length} chars`);
+    runtime2.log(`User prompt constructed. Length: ${userPrompt.length} chars`);
     const result = await sendGeminiRequestAsync(geminiApiKeyValue, userPrompt, runtime2);
     runtime2.log(`Gemini API status: ${result.statusCode}`);
     if (result.statusCode !== 200) {
-      throw new Error(`Gemini API returned status ${result.statusCode}: ${result.geminiResponse}`);
+      runtime2.log(`Gemini API Error details: ${result.geminiResponse.substring(0, 500)}`);
+      throw new Error(`Gemini API returned status ${result.statusCode}`);
     }
     const riskAnalysis = parseGeminiResponse(runtime2, result);
     runtime2.log(`Risk Assessment: ${riskAnalysis.riskLevel} | Type: ${riskAnalysis.riskType} | Confidence: ${riskAnalysis.confidence}/10000`);
@@ -18409,7 +18483,9 @@ var createOnCronTrigger = (config) => {
       try {
         const contractState = fetchContractState(runtime2, contract);
         const marketData = buildMarketDataSnapshot(runtime2, contract);
+        runtime2.log(`Starting AI analysis for ${contract.name}`);
         const aiAnalysis = await analyzeRiskWithGemini(runtime2, contract.name, contract.address, contract.chainSelectorName, marketData, contractState, contract.riskThresholds);
+        runtime2.log(`AI analysis completed for ${contract.name}. Level: ${aiAnalysis.riskLevel}`);
         const assessment = evaluateRisk(runtime2, contract, marketData, contractState, aiAnalysis);
         if (assessment.shouldAlert) {
           const alert = buildAlertPayload(runtime2, assessment, executionId);

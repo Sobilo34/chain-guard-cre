@@ -139,9 +139,12 @@ export function fetchPriceFeed(
         from: zeroAddress,
         to: feedConfig.feedAddress as Address,
         data: callData,
-      }),
-      blockNumber: LAST_FINALIZED_BLOCK_NUMBER,
+      })
     }).result();
+
+    if (!result || !result.data || result.data.length === 0) {
+      throw new Error(`Price feed ${feedConfig.pairName} returned empty data`);
+    }
 
     // Decode response
     const decoded = decodeFunctionResult({
@@ -241,8 +244,7 @@ export function fetchHistoricalPrices(
             from: zeroAddress,
             to: feedConfig.feedAddress as Address,
             data: callData,
-          }),
-          blockNumber: LAST_FINALIZED_BLOCK_NUMBER,
+          })
         }).result();
 
         const decoded = decodeFunctionResult({

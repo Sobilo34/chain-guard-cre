@@ -58,6 +58,7 @@ Edit `config.json`:
 ```bash
 in the cre chain-guard-cre directory
 cre workflow simulate chainguard-sentinel -T local-simulation
+cre workflow simulate chainguard-sentinel -T local-simulation -e .env
 ```
 
 You should see:

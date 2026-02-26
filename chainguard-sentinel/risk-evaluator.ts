@@ -40,6 +40,27 @@ export function evaluateRisk(
 ): RiskAssessment {
   runtime.log(`Evaluating risk for ${contract.name}`);
 
+  // MOCK: Inject high risk for demonstration if name starts with RISK_MOCK
+  if (contract.name.startsWith("RISK_MOCK")) {
+    runtime.log(`⚠️  MOCK RISK DETECTED for ${contract.name}`);
+    aiAnalysis.riskLevel = "CRITICAL";
+    aiAnalysis.riskType = "EXPLOIT";
+    aiAnalysis.confidence = 9800;
+    aiAnalysis.reasoning = "SIMULATED CRITICAL EVENT: Abnormal withdrawal patterns from multiple high-value vaults. Potential emergency pause triggered by protocol admins. Unusual smart contract interaction detected.";
+    aiAnalysis.cause = "Anomalous contract state and massive liquidity drain.";
+    aiAnalysis.consequences = "Complete loss of collateral for all users. System-wide insolvency.";
+    aiAnalysis.nextSteps = ["Emergency withdrawal", "Trigger contract pause", "Move funds to safety"];
+    aiAnalysis.suggestedActions = ["Initiate emergency exit", "Notify governance"];
+
+    // Inject a violation to ensure score > 80
+    marketData.priceDeviationFromPeg = 0.15; // 15% depeg
+    marketData.volatility24h = 0.85; // 85% volatility
+    marketData.totalValueLocked = 45200000; // $45.2M
+    marketData.currentPrice = 0.85; // $0.85 (depegged)
+    marketData.totalLiquidity = 22000000; // $22M
+    marketData.volume24h = 8500000; // $8.5M
+  }
+
   // Check threshold violations
   const violations = checkThresholdViolations(
     contract.riskThresholds,
@@ -143,7 +164,7 @@ function checkThresholdViolations(
     marketData.liquidityChange24h !== undefined
   ) {
     const liquidityDrop = Math.abs(Math.min(marketData.liquidityChange24h, 0));
-    
+
     if (liquidityDrop > thresholds.liquidityDropMax) {
       violations.push({
         type: "liquidityDropMax",
@@ -165,7 +186,7 @@ function checkThresholdViolations(
   ) {
     if (marketData.collateralRatio < thresholds.collateralRatioMin) {
       const deviation = thresholds.collateralRatioMin - marketData.collateralRatio;
-      
+
       violations.push({
         type: "collateralRatioMin",
         currentValue: marketData.collateralRatio,
@@ -364,7 +385,7 @@ export function generateRiskSummary(assessment: RiskAssessment): string {
     parts.push(
       `\n${assessment.thresholdViolations.length} threshold violation(s) detected:`
     );
-    
+
     for (const violation of assessment.thresholdViolations) {
       const pct = ((violation.currentValue / violation.thresholdValue - 1) * 100).toFixed(1);
       parts.push(
@@ -391,7 +412,7 @@ export function generateDetailedReasoning(assessment: RiskAssessment): string {
   // Add threshold violation details
   if (assessment.thresholdViolations.length > 0) {
     parts.push("\n\nThreshold Violations:");
-    
+
     for (const violation of assessment.thresholdViolations) {
       const pct = ((violation.currentValue / violation.thresholdValue - 1) * 100).toFixed(1);
       parts.push(
@@ -404,11 +425,11 @@ export function generateDetailedReasoning(assessment: RiskAssessment): string {
   if (assessment.marketData.currentPrice !== undefined) {
     parts.push(`\n\nMarket Context:`);
     parts.push(`- Current Price: $${assessment.marketData.currentPrice.toFixed(4)}`);
-    
+
     if (assessment.marketData.priceChange24h !== undefined) {
       parts.push(`- 24h Change: ${(assessment.marketData.priceChange24h * 100).toFixed(2)}%`);
     }
-    
+
     if (assessment.marketData.volatility24h !== undefined) {
       parts.push(`- 24h Volatility: ${(assessment.marketData.volatility24h * 100).toFixed(2)}%`);
     }

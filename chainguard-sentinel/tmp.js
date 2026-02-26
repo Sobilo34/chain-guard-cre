@@ -17067,21 +17067,15 @@ function batchFetchTokenBalances(runtime2, evmClient, tokenAddresses, holderAddr
 }
 function getCommonTokens(chainSelectorName) {
   const net = chainSelectorName.toLowerCase();
+  if (net.includes("mainnet")) {
+    return [
+      "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+    ];
+  }
   if (net.includes("sepolia")) {
     return [
-      "0x779877A7B0D9E8603169DdbD7836e478b4624789",
-      "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
-      "0x94a101C247558622CB1837F8E3C5791E8e384C66",
-      "0xaa8e23fb1079ea71e0a56f48a2aa51851d8433d0",
-      "0xfff9976782d46cc05630d1f6eBaf18d399576024"
-    ];
-  } else if (net.includes("ethereum-mainnet") || net === "ethereum-mainnet") {
-    return [
-      "0x514910771af9ca656af840dff83e8264ecf986ca",
-      "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-      "0xdac17f958d2ee523a2206206994597c13d831ec7",
-      "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
-      "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+      "0x779877A7B0D9E8603169DdbD7836e478b4624789"
     ];
   }
   return [];
@@ -17157,9 +17151,11 @@ function fetchPriceFeed(runtime2, feedConfig, chainSelectorName) {
         from: zeroAddress,
         to: feedConfig.feedAddress,
         data: callData
-      }),
-      blockNumber: LAST_FINALIZED_BLOCK_NUMBER
+      })
     }).result();
+    if (!result || !result.data || result.data.length === 0) {
+      throw new Error(`Price feed ${feedConfig.pairName} returned empty data`);
+    }
     const decoded = decodeFunctionResult({
       abi: getChainlinkAggregatorV3Abi(),
       functionName: "latestRoundData",
@@ -17218,8 +17214,7 @@ function fetchHistoricalPrices(runtime2, feedConfig, chainSelectorName, numRound
             from: zeroAddress,
             to: feedConfig.feedAddress,
             data: callData
-          }),
-          blockNumber: LAST_FINALIZED_BLOCK_NUMBER
+          })
         }).result();
         const decoded = decodeFunctionResult({
           abi: getChainlinkAggregatorV3Abi(),
@@ -17965,6 +17960,23 @@ function parseGeminiResponse(runtime2, geminiResponse) {
 }
 function evaluateRisk(runtime2, contract, marketData, contractState, aiAnalysis) {
   runtime2.log(`Evaluating risk for ${contract.name}`);
+  if (contract.name.startsWith("RISK_MOCK")) {
+    runtime2.log(`⚠️  MOCK RISK DETECTED for ${contract.name}`);
+    aiAnalysis.riskLevel = "CRITICAL";
+    aiAnalysis.riskType = "EXPLOIT";
+    aiAnalysis.confidence = 9800;
+    aiAnalysis.reasoning = "SIMULATED CRITICAL EVENT: Abnormal withdrawal patterns from multiple high-value vaults. Potential emergency pause triggered by protocol admins. Unusual smart contract interaction detected.";
+    aiAnalysis.cause = "Anomalous contract state and massive liquidity drain.";
+    aiAnalysis.consequences = "Complete loss of collateral for all users. System-wide insolvency.";
+    aiAnalysis.nextSteps = ["Emergency withdrawal", "Trigger contract pause", "Move funds to safety"];
+    aiAnalysis.suggestedActions = ["Initiate emergency exit", "Notify governance"];
+    marketData.priceDeviationFromPeg = 0.15;
+    marketData.volatility24h = 0.85;
+    marketData.totalValueLocked = 45200000;
+    marketData.currentPrice = 0.85;
+    marketData.totalLiquidity = 22000000;
+    marketData.volume24h = 8500000;
+  }
   const violations = checkThresholdViolations(contract.riskThresholds, marketData);
   const ruleBasedScore = calculateRuleBasedRiskScore(violations, marketData);
   const aiRiskScore = aiAnalysis.confidence / 1e4 * 100;

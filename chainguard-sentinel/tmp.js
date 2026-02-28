@@ -16844,6 +16844,7 @@ var EmailConfigSchema = exports_external.object({
   apiEndpoint: exports_external.string().url().optional()
 });
 var configSchema = exports_external.object({
+  openRouterModel: exports_external.string().optional(),
   geminiModel: exports_external.string().optional(),
   cronSchedule: exports_external.string().optional(),
   monitoredContracts: exports_external.array(MonitoredContractSchema).min(1),
@@ -16851,6 +16852,7 @@ var configSchema = exports_external.object({
   emailConfig: EmailConfigSchema.optional(),
   verboseLogging: exports_external.boolean().optional(),
   maxContractsPerRun: exports_external.number().int().min(1).max(100).optional(),
+  aiTimeoutMs: exports_external.number().int().min(1000).optional(),
   geminiTimeoutMs: exports_external.number().int().min(1000).optional()
 }).passthrough();
 var RiskTypeSchema = exports_external.enum([
@@ -17315,7 +17317,6 @@ function getDefaultFeedForChain(chainSelectorName) {
   }
   return null;
 }
-var { default: fs } = () => ({});
 function assertPath(path) {
   if (typeof path !== "string")
     throw TypeError("Path must be a string. Received " + JSON.stringify(path));
@@ -17634,7 +17635,6 @@ function parse(path) {
 var sep = "/";
 var delimiter = ":";
 var posix = ((p) => (p.posix = p, p))({ resolve, normalize, isAbsolute, join, relative, _makeLong, dirname, basename, extname, format, parse, sep, delimiter, win32: null, posix: null });
-var path_default = posix;
 var SYSTEM_PROMPT = `
 You are an expert DeFi risk analyst specializing in smart contract and market risk assessment.
 Your task is to analyze on-chain data and market metrics to identify potential risks for deployed smart contracts.
@@ -17715,60 +17715,27 @@ CONFIGURED RISK THRESHOLDS:
 
 Provide a comprehensive risk assessment following the required JSON format.
 `;
-function tryLoadGeminiKeyFromLocalFiles() {
-  const cwd = globalThis?.process?.cwd?.() || "";
-  if (!cwd)
-    return "";
-  const candidates = [
-    path_default.join(cwd, ".env"),
-    path_default.join(cwd, "secrets.yaml"),
-    path_default.join(cwd, "..", ".env"),
-    path_default.join(cwd, "..", "secrets.yaml"),
-    path_default.join(cwd, "chainguard-sentinel", "..", "secrets.yaml")
-  ];
-  for (const filePath of candidates) {
-    try {
-      if (!fs.existsSync(filePath))
-        continue;
-      const raw = fs.readFileSync(filePath, "utf8");
-      const envMatch = raw.match(/^\s*(OPENROUTER_API_KEY|GEMINI_API_KEY)\s*=\s*['\"]?([^'\"\n]+)['\"]?\s*$/m);
-      if (envMatch?.[2])
-        return envMatch[2].trim();
-      const yamlMatch = raw.match(/^\s*(OPENROUTER_API_KEY|GEMINI_API_KEY)\s*:\s*['\"]?([^'\"\n]+)['\"]?\s*$/m);
-      if (yamlMatch?.[2])
-        return yamlMatch[2].trim();
-    } catch {}
-  }
-  return "";
-}
 async function analyzeRiskWithGemini(runtime2, contractName, contractAddress, chainName, marketData, contractState, riskThresholds) {
   try {
     runtime2.log(`Querying OpenRouter AI for risk analysis: ${contractName}`);
-    let apiKeyValue = "";
-    try {
-      const apiKey = runtime2.getSecret({ id: "OPENROUTER_API_KEY" }).result();
-      apiKeyValue = apiKey.value || "";
-    } catch {
-      apiKeyValue = "";
-    }
-    if (!apiKeyValue) {
-      apiKeyValue = runtime2.config.openRouterApiKey || "";
-    }
+    let apiKeyValue = runtime2.config.openRouterApiKey || "";
     if (!apiKeyValue) {
       apiKeyValue = globalThis?.process?.env?.OPENROUTER_API_KEY || "";
     }
     if (!apiKeyValue) {
       try {
-        const apiKey = runtime2.getSecret({ id: "GEMINI_API_KEY" }).result();
+        const apiKey = runtime2.getSecret({ id: "OPENROUTER_API_KEY" }).result();
         apiKeyValue = apiKey.value || "";
-      } catch {}
+      } catch {
+        apiKeyValue = "";
+      }
     }
     if (!apiKeyValue) {
-      apiKeyValue = tryLoadGeminiKeyFromLocalFiles();
+      apiKeyValue = tryLoadOpenRouterKeyFromEnvFiles();
     }
     if (!apiKeyValue) {
-      runtime2.log("OpenRouter key missing in runtime secrets/config, using fallback risk response");
-      return getFallbackResponse("Missing API Configuration");
+      runtime2.log("OpenRouter API key missing. Set OPENROUTER_API_KEY in .env or config.");
+      return getFallbackResponse("Missing OPENROUTER_API_KEY");
     }
     const userPrompt = buildUserPrompt(contractName, contractAddress, chainName, marketData, contractState, riskThresholds);
     const result = await sendOpenRouterRequestAsync(apiKeyValue, userPrompt, runtime2);
@@ -17793,15 +17760,15 @@ function getFallbackResponse(reason) {
     reasoning: reason,
     cause: "Internal Analysis Error",
     consequences: "AI-driven risk detection is disabled",
-    nextSteps: ["Configure OPENROUTER_API_KEY"],
-    suggestedActions: ["Set OPENROUTER_API_KEY in CRE secrets"],
+    nextSteps: ["Set OPENROUTER_API_KEY in .env or config"],
+    suggestedActions: ["Add OPENROUTER_API_KEY to chain-guard-cre/.env and chain-guard/.env.local"],
     affectedMetrics: [],
     estimatedImpact: "Unknown due to analysis failure",
     mitigationStrategy: "Enable OpenRouter API to allow advanced analysis"
   };
 }
 async function sendOpenRouterRequestAsync(apiKey, userPrompt, runtime2) {
-  const model = runtime2.config.geminiModel || "google/gemini-2.0-flash-001";
+  const model = runtime2.config.openRouterModel || runtime2.config.geminiModel || "google/gemini-2.0-flash-001";
   const apiUrl = "https://openrouter.ai/api/v1/chat/completions";
   const requestPayload = {
     model,
@@ -18486,18 +18453,32 @@ var createOnCronTrigger = (config) => {
         } else {
           runtime2.log(`No alert triggered for ${contract.name}`);
         }
-        runtime2.log(`[SENTINEL_ASSESSMENT] ` + JSON.stringify({
+        const ai = assessment.aiAnalysis;
+        const short = (s, max = 120) => (s && s.length > max ? s.slice(0, max) + "…" : s) || "";
+        const latestScan = {
+          reasoning: short(ai.reasoning),
+          cause: short(ai.cause, 80),
+          consequences: short(ai.consequences, 80),
+          nextSteps: Array.isArray(ai.nextSteps) ? ai.nextSteps.slice(0, 2) : [],
+          suggestedActions: Array.isArray(ai.suggestedActions) ? ai.suggestedActions.slice(0, 2) : [],
+          riskType: ai.riskType,
+          riskLevel: ai.riskLevel
+        };
+        const payload = {
           contractAddress: assessment.contractAddress,
-          riskLevel: assessment.aiAnalysis.riskLevel,
+          riskLevel: ai.riskLevel,
           riskScore: assessment.overallRiskScore,
           metrics: {
-            ...assessment.marketData,
             volatility: assessment.marketData.volatility24h,
             tvl: assessment.marketData.totalValueLocked,
-            liquidity: assessment.marketData.totalLiquidity
+            liquidity: assessment.marketData.totalLiquidity,
+            currentPrice: assessment.marketData.currentPrice,
+            chainSelectorName: assessment.marketData.chainSelectorName,
+            timestamp: assessment.marketData.timestamp
           },
-          latestScan: assessment.aiAnalysis
-        }));
+          latestScan
+        };
+        runtime2.log(`[SENTINEL_ASSESSMENT] ` + JSON.stringify(payload));
       } catch (err) {
         runtime2.log(`Error processing ${contract.name}: ${err instanceof Error ? err.message : String(err)}`);
       }
@@ -18543,10 +18524,6 @@ function buildAlertPayload(runtime2, assessment, executionId) {
   return alert;
 }
 var initWorkflow = (config) => {
-  const envGeminiKey = globalThis?.process?.env?.GEMINI_API_KEY;
-  if (!config.geminiApiKey && envGeminiKey) {
-    config.geminiApiKey = envGeminiKey;
-  }
   const cron = new CronCapability;
   const onCronTrigger = createOnCronTrigger(config);
   return [

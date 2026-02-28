@@ -1,6 +1,6 @@
-// gemini.ts
-// Gemini AI integration for intelligent market risk analysis.
-// Uses CRE HTTP capability to query Gemini with structured prompts.
+// gemini.ts (OpenRouter)
+// OpenRouter AI integration for intelligent market risk analysis.
+// Uses CRE HTTP capability to query OpenRouter with structured prompts.
 
 import {
   HTTPClient,
@@ -170,38 +170,26 @@ export async function analyzeRiskWithGemini(
   try {
     runtime.log(`Querying OpenRouter AI for risk analysis: ${contractName}`);
 
-    // Get API key from secrets, then fallback to config, then env.
-    let apiKeyValue = "";
-    try {
-      const apiKey = runtime.getSecret({ id: "OPENROUTER_API_KEY" }).result();
-      apiKeyValue = apiKey.value || "";
-    } catch {
-      apiKeyValue = "";
-    }
-
-    if (!apiKeyValue) {
-      apiKeyValue = (runtime.config as any).openRouterApiKey || "";
-    }
-
+    // Get API key: config (injected by simulate route) -> env -> secrets -> .env files
+    let apiKeyValue = (runtime.config as any).openRouterApiKey || "";
     if (!apiKeyValue) {
       apiKeyValue = ((globalThis as any)?.process?.env?.OPENROUTER_API_KEY as string | undefined) || "";
     }
-
     if (!apiKeyValue) {
-      // Fallback to legacy key name if updated key not found
       try {
-        const apiKey = runtime.getSecret({ id: "GEMINI_API_KEY" }).result();
+        const apiKey = runtime.getSecret({ id: "OPENROUTER_API_KEY" }).result();
         apiKeyValue = apiKey.value || "";
-      } catch { }
+      } catch {
+        apiKeyValue = "";
+      }
+    }
+    if (!apiKeyValue) {
+      apiKeyValue = tryLoadOpenRouterKeyFromEnvFiles();
     }
 
     if (!apiKeyValue) {
-      apiKeyValue = tryLoadGeminiKeyFromLocalFiles(); // This helper checks both keys now
-    }
-
-    if (!apiKeyValue) {
-      runtime.log("OpenRouter key missing in runtime secrets/config, using fallback risk response");
-      return getFallbackResponse("Missing API Configuration");
+      runtime.log("OpenRouter API key missing. Set OPENROUTER_API_KEY in .env or config.");
+      return getFallbackResponse("Missing OPENROUTER_API_KEY");
     }
 
     // Build user prompt with actual data
@@ -246,8 +234,8 @@ function getFallbackResponse(reason: string): GeminiRiskResponse {
     reasoning: reason,
     cause: "Internal Analysis Error",
     consequences: "AI-driven risk detection is disabled",
-    nextSteps: ["Configure OPENROUTER_API_KEY"],
-    suggestedActions: ["Set OPENROUTER_API_KEY in CRE secrets"],
+    nextSteps: ["Set OPENROUTER_API_KEY in .env or config"],
+    suggestedActions: ["Add OPENROUTER_API_KEY to chain-guard-cre/.env and chain-guard/.env.local"],
     affectedMetrics: [],
     estimatedImpact: "Unknown due to analysis failure",
     mitigationStrategy: "Enable OpenRouter API to allow advanced analysis",
@@ -255,7 +243,7 @@ function getFallbackResponse(reason: string): GeminiRiskResponse {
 }
 
 async function sendOpenRouterRequestAsync(apiKey: string, userPrompt: string, runtime: Runtime<Config>): Promise<GeminiResponse> {
-  const model = runtime.config.geminiModel || "google/gemini-2.0-flash-001";
+  const model = (runtime.config as any).openRouterModel || (runtime.config as any).geminiModel || "google/gemini-2.0-flash-001";
   const apiUrl = "https://openrouter.ai/api/v1/chat/completions";
 
   const requestPayload = {

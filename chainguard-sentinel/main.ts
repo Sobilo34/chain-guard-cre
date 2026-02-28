@@ -94,18 +94,33 @@ const createOnCronTrigger = (config: Config) => {
           runtime.log(`No alert triggered for ${contract.name}`);
         }
 
-        runtime.log(`[SENTINEL_ASSESSMENT] ` + JSON.stringify({
+        // Keep log line compact (~500 chars) so runtime does not truncate; dashboard needs all 3 contracts
+        const ai = assessment.aiAnalysis;
+        const short = (s: string, max = 120) => (s && s.length > max ? s.slice(0, max) + "…" : s) || "";
+        const latestScan = {
+          reasoning: short(ai.reasoning),
+          cause: short(ai.cause, 80),
+          consequences: short(ai.consequences, 80),
+          nextSteps: Array.isArray(ai.nextSteps) ? ai.nextSteps.slice(0, 2) : [],
+          suggestedActions: Array.isArray(ai.suggestedActions) ? ai.suggestedActions.slice(0, 2) : [],
+          riskType: ai.riskType,
+          riskLevel: ai.riskLevel,
+        };
+        const payload = {
           contractAddress: assessment.contractAddress,
-          riskLevel: assessment.aiAnalysis.riskLevel,
+          riskLevel: ai.riskLevel,
           riskScore: assessment.overallRiskScore,
           metrics: {
-            ...assessment.marketData,
             volatility: assessment.marketData.volatility24h,
             tvl: assessment.marketData.totalValueLocked,
             liquidity: assessment.marketData.totalLiquidity,
+            currentPrice: assessment.marketData.currentPrice,
+            chainSelectorName: assessment.marketData.chainSelectorName,
+            timestamp: assessment.marketData.timestamp,
           },
-          latestScan: assessment.aiAnalysis
-        }));
+          latestScan,
+        };
+        runtime.log(`[SENTINEL_ASSESSMENT] ` + JSON.stringify(payload));
 
 
       } catch (err) {
@@ -175,11 +190,6 @@ function buildAlertPayload(
  * Called by the Runner to register handlers.
  */
 const initWorkflow = (config: Config) => {
-  const envGeminiKey = (globalThis as any)?.process?.env?.GEMINI_API_KEY as string | undefined;
-  if (!(config as Config & { geminiApiKey?: string }).geminiApiKey && envGeminiKey) {
-    (config as Config & { geminiApiKey?: string }).geminiApiKey = envGeminiKey;
-  }
-
   const cron = new CronCapability();
   const onCronTrigger = createOnCronTrigger(config);
 

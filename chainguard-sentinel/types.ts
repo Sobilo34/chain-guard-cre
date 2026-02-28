@@ -120,8 +120,9 @@ export type EmailConfig = z.infer<typeof EmailConfigSchema>;
  * Validates all runtime settings for ChainGuard Sentinel.
  */
 export const configSchema = z.object({
-  // Gemini AI model to use for risk analysis
-  geminiModel: z.string().optional(),
+  // OpenRouter model for risk analysis (e.g. google/gemini-2.0-flash-001)
+  openRouterModel: z.string().optional(),
+  geminiModel: z.string().optional(), // legacy alias
 
   // Cron schedule for monitoring (e.g., "*/5 * * * *" = every 5 minutes)
   cronSchedule: z.string().optional(),
@@ -141,8 +142,9 @@ export const configSchema = z.object({
   // Optional: Maximum number of contracts to process per run
   maxContractsPerRun: z.number().int().min(1).max(100).optional(),
 
-  // Optional: Timeout for Gemini API calls in milliseconds
-  geminiTimeoutMs: z.number().int().min(1000).optional(),
+  // Optional: Timeout for AI API calls in milliseconds
+  aiTimeoutMs: z.number().int().min(1000).optional(),
+  geminiTimeoutMs: z.number().int().min(1000).optional(), // legacy
 }).passthrough();
 
 export type Config = z.infer<typeof configSchema>;

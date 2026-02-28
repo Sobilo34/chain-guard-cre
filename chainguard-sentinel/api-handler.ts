@@ -68,7 +68,7 @@ export function addContract(
   const network = getNetwork({
     chainFamily: "evm",
     chainSelectorName,
-    isTestnet: chainSelectorName.includes("testnet") || chainSelectorName.includes("sepolia") || chainSelectorName.includes("amoy"),
+    isTestnet: false,
   });
 
   if (!network) {

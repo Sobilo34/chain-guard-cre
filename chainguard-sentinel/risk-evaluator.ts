@@ -40,26 +40,9 @@ export function evaluateRisk(
 ): RiskAssessment {
   runtime.log(`Evaluating risk for ${contract.name}`);
 
-  // MOCK: Inject high risk for demonstration if name starts with RISK_MOCK
-  if (contract.name.startsWith("RISK_MOCK")) {
-    runtime.log(`⚠️  MOCK RISK DETECTED for ${contract.name}`);
-    aiAnalysis.riskLevel = "CRITICAL";
-    aiAnalysis.riskType = "EXPLOIT";
-    aiAnalysis.confidence = 9800;
-    aiAnalysis.reasoning = "SIMULATED CRITICAL EVENT: Abnormal withdrawal patterns from multiple high-value vaults. Potential emergency pause triggered by protocol admins. Unusual smart contract interaction detected.";
-    aiAnalysis.cause = "Anomalous contract state and massive liquidity drain.";
-    aiAnalysis.consequences = "Complete loss of collateral for all users. System-wide insolvency.";
-    aiAnalysis.nextSteps = ["Emergency withdrawal", "Trigger contract pause", "Move funds to safety"];
-    aiAnalysis.suggestedActions = ["Initiate emergency exit", "Notify governance"];
-
-    // Inject a violation to ensure score > 80
-    marketData.priceDeviationFromPeg = 0.15; // 15% depeg
-    marketData.volatility24h = 0.85; // 85% volatility
-    marketData.totalValueLocked = 45200000; // $45.2M
-    marketData.currentPrice = 0.85; // $0.85 (depegged)
-    marketData.totalLiquidity = 22000000; // $22M
-    marketData.volume24h = 8500000; // $8.5M
-  }
+  // Risk is determined only by real threshold violations, market data, and AI analysis.
+  // No hardcoded overrides: volatility, depeg, liquidity, manipulation, and collateral
+  // are assessed from actual feeds and on-chain state.
 
   // Check threshold violations
   const violations = checkThresholdViolations(

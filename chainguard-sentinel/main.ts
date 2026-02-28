@@ -94,15 +94,17 @@ const createOnCronTrigger = (config: Config) => {
           runtime.log(`No alert triggered for ${contract.name}`);
         }
 
-        // Keep log line compact (~500 chars) so runtime does not truncate; dashboard needs all 3 contracts
+        // Send full AI analysis to dashboard (no truncation) so the UI shows complete reasoning, cause, consequences, etc.
         const ai = assessment.aiAnalysis;
-        const short = (s: string, max = 120) => (s && s.length > max ? s.slice(0, max) + "…" : s) || "";
         const latestScan = {
-          reasoning: short(ai.reasoning),
-          cause: short(ai.cause, 80),
-          consequences: short(ai.consequences, 80),
-          nextSteps: Array.isArray(ai.nextSteps) ? ai.nextSteps.slice(0, 2) : [],
-          suggestedActions: Array.isArray(ai.suggestedActions) ? ai.suggestedActions.slice(0, 2) : [],
+          reasoning: (ai.reasoning ?? "").trim(),
+          cause: (ai.cause ?? "").trim(),
+          consequences: (ai.consequences ?? "").trim(),
+          estimatedImpact: ((ai as any).estimatedImpact ?? "").trim(),
+          mitigationStrategy: ((ai as any).mitigationStrategy ?? "").trim(),
+          nextSteps: Array.isArray(ai.nextSteps) ? ai.nextSteps : [],
+          suggestedActions: Array.isArray(ai.suggestedActions) ? ai.suggestedActions : [],
+          affectedMetrics: Array.isArray((ai as any).affectedMetrics) ? (ai as any).affectedMetrics : [],
           riskType: ai.riskType,
           riskLevel: ai.riskLevel,
         };

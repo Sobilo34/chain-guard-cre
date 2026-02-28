@@ -41,45 +41,13 @@ const getChainlinkAggregatorV3Abi = () => parseAbi([
  * Well-Known Chainlink Feed Addresses
  *********************************/
 
-// Ethereum Sepolia Testnet
-const SEPOLIA_FEEDS: Record<string, PriceFeedConfig> = {
-  "ETH/USD": {
-    feedAddress: "0x694AA1769357215DE4FAC081bf1f309aDC325306",
-    pairName: "ETH/USD",
-    decimals: 8,
-    heartbeat: 3600, // 1 hour
-  },
-  "USDC/USD": {
-    feedAddress: "0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E",
-    pairName: "USDC/USD",
-    decimals: 8,
-    heartbeat: 86400, // 24 hours
-  },
-  "BTC/USD": {
-    feedAddress: "0x1b44F3514812d835EB1BDB0acB33d3fA3351Ee43",
-    pairName: "BTC/USD",
-    decimals: 8,
-    heartbeat: 3600,
-  },
-};
-
-// Ethereum Mainnet
+// Ethereum Mainnet only (no testnets)
 const MAINNET_FEEDS: Record<string, PriceFeedConfig> = {
   "ETH/USD": {
     feedAddress: "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419",
     pairName: "ETH/USD",
     decimals: 8,
     heartbeat: 3600,
-  },
-};
-
-// Polygon Amoy Testnet
-const AMOY_FEEDS: Record<string, PriceFeedConfig> = {
-  "MATIC/USD": {
-    feedAddress: "0x001382149eBa3441043c1c66972b4772963f5D43",
-    pairName: "MATIC/USD",
-    decimals: 8,
-    heartbeat: 120, // 2 minutes
   },
 };
 
@@ -118,7 +86,7 @@ export function fetchPriceFeed(
     const network = getNetwork({
       chainFamily: "evm",
       chainSelectorName,
-      isTestnet: chainSelectorName.includes("testnet"),
+      isTestnet: false,
     });
 
     if (!network) {
@@ -213,7 +181,7 @@ export function fetchHistoricalPrices(
     const network = getNetwork({
       chainFamily: "evm",
       chainSelectorName,
-      isTestnet: chainSelectorName.includes("testnet"),
+      isTestnet: false,
     });
 
     if (!network) {
@@ -430,12 +398,11 @@ export function buildMarketDataSnapshot(
  * Gets default price feed for a chain (ETH/USD for Ethereum, MATIC/USD for Polygon, etc.)
  */
 export function getDefaultFeedForChain(chainSelectorName: string): PriceFeedConfig | null {
-  const isTestnet = chainSelectorName.includes("testnet");
-
   if (chainSelectorName.includes("ethereum")) {
-    return isTestnet ? SEPOLIA_FEEDS["ETH/USD"] : MAINNET_FEEDS["ETH/USD"];
-  } else if (chainSelectorName.includes("polygon")) {
-    return isTestnet ? AMOY_FEEDS["MATIC/USD"] : POLYGON_FEEDS["MATIC/USD"];
+    return MAINNET_FEEDS["ETH/USD"];
+  }
+  if (chainSelectorName.includes("polygon")) {
+    return POLYGON_FEEDS["MATIC/USD"];
   }
   return null;
 }
@@ -476,8 +443,6 @@ export function isPriceFeedStale(
  * Export well-known feeds for easy access
  */
 export const WELL_KNOWN_FEEDS = {
-  SEPOLIA: SEPOLIA_FEEDS,
   MAINNET: MAINNET_FEEDS,
-  AMOY: AMOY_FEEDS,
   POLYGON: POLYGON_FEEDS,
 };

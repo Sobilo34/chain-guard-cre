@@ -79,7 +79,7 @@ export function fetchContractState(
     const network = getNetwork({
       chainFamily: "evm",
       chainSelectorName: contract.chainSelectorName,
-      isTestnet: contract.chainSelectorName.includes("testnet"),
+      isTestnet: false,
     });
 
     if (!network) {
@@ -492,12 +492,6 @@ function getCommonTokens(chainSelectorName: string): string[] {
     return [
       "0xdAC17F958D2ee523a2206206994597C13D831ec7", // USDT
       "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // USDC
-    ];
-  }
-
-  if (net.includes('sepolia')) {
-    return [
-      '0x779877A7B0D9E8603169DdbD7836e478b4624789', // LINK
     ];
   }
 

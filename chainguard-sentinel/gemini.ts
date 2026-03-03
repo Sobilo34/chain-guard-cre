@@ -423,62 +423,81 @@ function formatContractState(state: ContractStateData): string {
  * Response Parsing
  *********************************/
 
+const VALID_RISK_LEVELS = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
+const VALID_RISK_TYPES = ["DEPEG", "VOLATILITY", "LIQUIDITY", "COLLATERAL", "GAS_SPIKE", "MANIPULATION", "EXPLOIT", "CUSTOM"] as const;
+
 /**
- * Parses and validates Gemini response JSON.
+ * Parses and validates Gemini response JSON. Tolerates missing or differently named
+ * fields so new contracts and API variations still produce a valid assessment.
  */
 function parseGeminiResponse(
   runtime: Runtime<Config>,
   geminiResponse: GeminiResponse
 ): GeminiRiskResponse {
+  const fallback = (reason: string): GeminiRiskResponse => ({
+    riskLevel: "LOW",
+    riskType: "CUSTOM",
+    confidence: 0,
+    reasoning: reason,
+    cause: "Parsing Error",
+    consequences: "Analysis unavailable",
+    nextSteps: ["Check API logs", "Retry analysis"],
+    suggestedActions: ["Manual review required"],
+    affectedMetrics: [],
+    estimatedImpact: "Unknown",
+    mitigationStrategy: "Review potential data corruption in input or API response",
+  });
+
   try {
-    // Extract JSON from response (handle potential markdown wrapping)
-    let jsonStr = geminiResponse.geminiResponse.trim();
+    let jsonStr = (geminiResponse.geminiResponse || "").trim();
+    if (!jsonStr) return fallback("Empty AI response");
 
-    // Remove markdown code fences if present
     if (jsonStr.startsWith("```json")) {
-      jsonStr = jsonStr.replace(/```json\n?/, "").replace(/\n?```$/, "");
+      jsonStr = jsonStr.replace(/^```json\n?/, "").replace(/\n?```\s*$/, "");
     } else if (jsonStr.startsWith("```")) {
-      jsonStr = jsonStr.replace(/```\n?/, "").replace(/\n?```$/, "");
+      jsonStr = jsonStr.replace(/^```\n?/, "").replace(/\n?```\s*$/, "");
     }
 
-    // Parse JSON
-    const parsed = JSON.parse(jsonStr);
-
-    // Validate required fields
-    if (!parsed.riskLevel || !parsed.riskType || parsed.confidence === undefined) {
-      throw new Error("Missing required fields in Gemini response");
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch (e) {
+      return fallback(`Invalid JSON: ${(e as Error).message}`);
     }
 
-    // Ensure confidence is in valid range
-    if (parsed.confidence < 0 || parsed.confidence > 10000) {
-      runtime.log(`Warning: Confidence ${parsed.confidence} out of range, clamping`);
-      parsed.confidence = Math.max(0, Math.min(10000, parsed.confidence));
+    if (!parsed || typeof parsed !== "object") return fallback("Response was not a JSON object");
+
+    // Normalize snake_case / alternate keys
+    const p = parsed as any;
+    const riskLevelRaw = p.riskLevel ?? p.risk_level ?? p.risklevel;
+    const riskTypeRaw = p.riskType ?? p.risk_type ?? p.risktype;
+    const confidenceRaw = p.confidence;
+
+    const riskLevel = VALID_RISK_LEVELS.includes(riskLevelRaw) ? riskLevelRaw : "LOW";
+    const riskType = VALID_RISK_TYPES.includes(riskTypeRaw) ? riskTypeRaw : "CUSTOM";
+    let confidence = typeof confidenceRaw === "number" ? confidenceRaw : parseInt(String(confidenceRaw ?? "0"), 10);
+    if (!Number.isFinite(confidence) || confidence < 0 || confidence > 10000) {
+      runtime.log(`Warning: Confidence ${confidenceRaw} invalid, using 0`);
+      confidence = 0;
     }
 
-    // Ensure arrays exist
-    parsed.suggestedActions = parsed.suggestedActions || [];
-    parsed.affectedMetrics = parsed.affectedMetrics || [];
-
-    return parsed as GeminiRiskResponse;
-
+    return {
+      riskLevel,
+      riskType,
+      confidence,
+      reasoning: typeof p.reasoning === "string" ? p.reasoning : (p.reasoning ? String(p.reasoning) : "No reasoning provided."),
+      cause: typeof p.cause === "string" ? p.cause : (p.cause ? String(p.cause) : "No root cause identified."),
+      consequences: typeof p.consequences === "string" ? p.consequences : (p.consequences ? String(p.consequences) : "Impact assessment pending."),
+      nextSteps: Array.isArray(p.nextSteps) ? p.nextSteps.map(String) : (Array.isArray(p.next_steps) ? p.next_steps.map(String) : []),
+      suggestedActions: Array.isArray(p.suggestedActions) ? p.suggestedActions.map(String) : (Array.isArray(p.suggested_actions) ? p.suggested_actions.map(String) : []),
+      affectedMetrics: Array.isArray(p.affectedMetrics) ? p.affectedMetrics.map(String) : (Array.isArray(p.affected_metrics) ? p.affected_metrics.map(String) : []),
+      estimatedImpact: typeof p.estimatedImpact === "string" ? p.estimatedImpact : (p.estimated_impact != null ? String(p.estimated_impact) : undefined),
+      mitigationStrategy: typeof p.mitigationStrategy === "string" ? p.mitigationStrategy : (p.mitigation_strategy != null ? String(p.mitigation_strategy) : undefined),
+    };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     runtime.log(`Error parsing Gemini response: ${msg}`);
-    runtime.log(`Raw response: ${geminiResponse.geminiResponse.substring(0, 500)}`);
-
-    // Return safe fallback
-    return {
-      riskLevel: "LOW",
-      riskType: "CUSTOM",
-      confidence: 0,
-      reasoning: `Failed to parse AI response: ${msg}`,
-      cause: "Parsing Error",
-      consequences: "Analysis unavailable",
-      nextSteps: ["Check API logs", "Retry analysis"],
-      suggestedActions: ["Manual review required"],
-      affectedMetrics: [],
-      estimatedImpact: "Unknown",
-      mitigationStrategy: "Review potential data corruption in input or API response",
-    };
+    runtime.log(`Raw response (first 500 chars): ${(geminiResponse.geminiResponse || "").substring(0, 500)}`);
+    return fallback(`Failed to parse AI response: ${msg}`);
   }
 }

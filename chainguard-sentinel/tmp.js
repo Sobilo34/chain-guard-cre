@@ -17851,42 +17851,68 @@ function formatContractState(state) {
   return parts.length > 0 ? parts.join(`
 `) : "No on-chain state data available";
 }
+var VALID_RISK_LEVELS = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
+var VALID_RISK_TYPES = ["DEPEG", "VOLATILITY", "LIQUIDITY", "COLLATERAL", "GAS_SPIKE", "MANIPULATION", "EXPLOIT", "CUSTOM"];
 function parseGeminiResponse(runtime2, geminiResponse) {
+  const fallback = (reason) => ({
+    riskLevel: "LOW",
+    riskType: "CUSTOM",
+    confidence: 0,
+    reasoning: reason,
+    cause: "Parsing Error",
+    consequences: "Analysis unavailable",
+    nextSteps: ["Check API logs", "Retry analysis"],
+    suggestedActions: ["Manual review required"],
+    affectedMetrics: [],
+    estimatedImpact: "Unknown",
+    mitigationStrategy: "Review potential data corruption in input or API response"
+  });
   try {
-    let jsonStr = geminiResponse.geminiResponse.trim();
+    let jsonStr = (geminiResponse.geminiResponse || "").trim();
+    if (!jsonStr)
+      return fallback("Empty AI response");
     if (jsonStr.startsWith("```json")) {
-      jsonStr = jsonStr.replace(/```json\n?/, "").replace(/\n?```$/, "");
+      jsonStr = jsonStr.replace(/^```json\n?/, "").replace(/\n?```\s*$/, "");
     } else if (jsonStr.startsWith("```")) {
-      jsonStr = jsonStr.replace(/```\n?/, "").replace(/\n?```$/, "");
+      jsonStr = jsonStr.replace(/^```\n?/, "").replace(/\n?```\s*$/, "");
     }
-    const parsed = JSON.parse(jsonStr);
-    if (!parsed.riskLevel || !parsed.riskType || parsed.confidence === undefined) {
-      throw new Error("Missing required fields in Gemini response");
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch (e) {
+      return fallback(`Invalid JSON: ${e.message}`);
     }
-    if (parsed.confidence < 0 || parsed.confidence > 1e4) {
-      runtime2.log(`Warning: Confidence ${parsed.confidence} out of range, clamping`);
-      parsed.confidence = Math.max(0, Math.min(1e4, parsed.confidence));
+    if (!parsed || typeof parsed !== "object")
+      return fallback("Response was not a JSON object");
+    const p = parsed;
+    const riskLevelRaw = p.riskLevel ?? p.risk_level ?? p.risklevel;
+    const riskTypeRaw = p.riskType ?? p.risk_type ?? p.risktype;
+    const confidenceRaw = p.confidence;
+    const riskLevel = VALID_RISK_LEVELS.includes(riskLevelRaw) ? riskLevelRaw : "LOW";
+    const riskType = VALID_RISK_TYPES.includes(riskTypeRaw) ? riskTypeRaw : "CUSTOM";
+    let confidence = typeof confidenceRaw === "number" ? confidenceRaw : parseInt(String(confidenceRaw ?? "0"), 10);
+    if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1e4) {
+      runtime2.log(`Warning: Confidence ${confidenceRaw} invalid, using 0`);
+      confidence = 0;
     }
-    parsed.suggestedActions = parsed.suggestedActions || [];
-    parsed.affectedMetrics = parsed.affectedMetrics || [];
-    return parsed;
+    return {
+      riskLevel,
+      riskType,
+      confidence,
+      reasoning: typeof p.reasoning === "string" ? p.reasoning : p.reasoning ? String(p.reasoning) : "No reasoning provided.",
+      cause: typeof p.cause === "string" ? p.cause : p.cause ? String(p.cause) : "No root cause identified.",
+      consequences: typeof p.consequences === "string" ? p.consequences : p.consequences ? String(p.consequences) : "Impact assessment pending.",
+      nextSteps: Array.isArray(p.nextSteps) ? p.nextSteps.map(String) : Array.isArray(p.next_steps) ? p.next_steps.map(String) : [],
+      suggestedActions: Array.isArray(p.suggestedActions) ? p.suggestedActions.map(String) : Array.isArray(p.suggested_actions) ? p.suggested_actions.map(String) : [],
+      affectedMetrics: Array.isArray(p.affectedMetrics) ? p.affectedMetrics.map(String) : Array.isArray(p.affected_metrics) ? p.affected_metrics.map(String) : [],
+      estimatedImpact: typeof p.estimatedImpact === "string" ? p.estimatedImpact : p.estimated_impact != null ? String(p.estimated_impact) : undefined,
+      mitigationStrategy: typeof p.mitigationStrategy === "string" ? p.mitigationStrategy : p.mitigation_strategy != null ? String(p.mitigation_strategy) : undefined
+    };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     runtime2.log(`Error parsing Gemini response: ${msg}`);
-    runtime2.log(`Raw response: ${geminiResponse.geminiResponse.substring(0, 500)}`);
-    return {
-      riskLevel: "LOW",
-      riskType: "CUSTOM",
-      confidence: 0,
-      reasoning: `Failed to parse AI response: ${msg}`,
-      cause: "Parsing Error",
-      consequences: "Analysis unavailable",
-      nextSteps: ["Check API logs", "Retry analysis"],
-      suggestedActions: ["Manual review required"],
-      affectedMetrics: [],
-      estimatedImpact: "Unknown",
-      mitigationStrategy: "Review potential data corruption in input or API response"
-    };
+    runtime2.log(`Raw response (first 500 chars): ${(geminiResponse.geminiResponse || "").substring(0, 500)}`);
+    return fallback(`Failed to parse AI response: ${msg}`);
   }
 }
 function evaluateRisk(runtime2, contract, marketData, contractState, aiAnalysis) {
@@ -18401,16 +18427,15 @@ var createOnCronTrigger = (config) => {
           runtime2.log(`No alert triggered for ${contract.name}`);
         }
         const ai = assessment.aiAnalysis;
-        const short = (s, max = 160) => (s && s.length > max ? s.slice(0, max) + "…" : s) || "";
         const latestScan = {
-          reasoning: short(ai.reasoning, 220),
-          cause: short(ai.cause, 120),
-          consequences: short(ai.consequences, 120),
-          estimatedImpact: short(ai.estimatedImpact, 120),
-          mitigationStrategy: short(ai.mitigationStrategy, 180),
-          nextSteps: Array.isArray(ai.nextSteps) ? ai.nextSteps.slice(0, 4) : [],
-          suggestedActions: Array.isArray(ai.suggestedActions) ? ai.suggestedActions.slice(0, 4) : [],
-          affectedMetrics: Array.isArray(ai.affectedMetrics) ? ai.affectedMetrics.slice(0, 6) : [],
+          reasoning: (ai.reasoning ?? "").trim(),
+          cause: (ai.cause ?? "").trim(),
+          consequences: (ai.consequences ?? "").trim(),
+          estimatedImpact: (ai.estimatedImpact ?? "").trim(),
+          mitigationStrategy: (ai.mitigationStrategy ?? "").trim(),
+          nextSteps: Array.isArray(ai.nextSteps) ? ai.nextSteps : [],
+          suggestedActions: Array.isArray(ai.suggestedActions) ? ai.suggestedActions : [],
+          affectedMetrics: Array.isArray(ai.affectedMetrics) ? ai.affectedMetrics : [],
           riskType: ai.riskType,
           riskLevel: ai.riskLevel
         };

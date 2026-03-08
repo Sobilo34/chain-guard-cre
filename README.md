@@ -2,7 +2,7 @@
 
 **The Chainlink CRE workflow that powers ChainGuard’s decentralized risk analysis.**
 
-This repository contains the **Chainlink Runtime Environment (CRE)** workflow used by [ChainGuard Sentinel](https://github.com/your-org/chain-guard). It is triggered by on-chain events from the **ChainGuardCREConsumer** contract, pulls contract and market data, runs AI risk analysis, and writes the report back on-chain—so the frontend never needs a custom backend.
+This repository contains the **Chainlink Runtime Environment (CRE)** workflow used by [ChainGuard Sentinel](https://github.com/Sobilo34/chain-guard). It is triggered by on-chain events from the **ChainGuardCREConsumer** contract, pulls contract and market data, runs AI risk analysis, and writes the report back on-chain—so the frontend never needs a custom backend.
 
 ---
 
@@ -54,16 +54,16 @@ chain-guard-cre/
 
 ## Link to all files that use Chainlink
 
-| File | Purpose |
-|------|--------|
+| File                                                                                           | Purpose                                                                                                           |
+| ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | [chainguard-sentinel/evm-triggered-workflow.ts](chainguard-sentinel/evm-triggered-workflow.ts) | EVM log trigger; decodes `RiskAnalysisRequested`, fetches state + market data, runs AI, writes report on consumer |
-| [chainguard-sentinel/chainlink-feeds.ts](chainguard-sentinel/chainlink-feeds.ts) | Chainlink Data Feeds / price feed integration |
-| [chainguard-sentinel/evm.ts](chainguard-sentinel/evm.ts) | EVM reads for contract state (used by workflow) |
-| [chainguard-sentinel/gemini.ts](chainguard-sentinel/gemini.ts) | AI risk analysis (Gemini/OpenRouter) |
-| [chainguard-sentinel/risk-evaluator.ts](chainguard-sentinel/risk-evaluator.ts) | Risk scoring and threshold checks |
-| [chainguard-sentinel/main.ts](chainguard-sentinel/main.ts) | Cron-triggered workflow (optional path) |
-| [chainguard-sentinel/workflow.yaml](chainguard-sentinel/workflow.yaml) | CRE workflow targets and artifact paths |
-| [project.yaml](project.yaml) | CRE project settings and RPC (e.g. Sepolia via Alchemy) |
+| [chainguard-sentinel/chainlink-feeds.ts](chainguard-sentinel/chainlink-feeds.ts)               | Chainlink Data Feeds / price feed integration                                                                     |
+| [chainguard-sentinel/evm.ts](chainguard-sentinel/evm.ts)                                       | EVM reads for contract state (used by workflow)                                                                   |
+| [chainguard-sentinel/gemini.ts](chainguard-sentinel/gemini.ts)                                 | AI risk analysis (Gemini/OpenRouter)                                                                              |
+| [chainguard-sentinel/risk-evaluator.ts](chainguard-sentinel/risk-evaluator.ts)                 | Risk scoring and threshold checks                                                                                 |
+| [chainguard-sentinel/main.ts](chainguard-sentinel/main.ts)                                     | Cron-triggered workflow (optional path)                                                                           |
+| [chainguard-sentinel/workflow.yaml](chainguard-sentinel/workflow.yaml)                         | CRE workflow targets and artifact paths                                                                           |
+| [project.yaml](project.yaml)                                                                   | CRE project settings and RPC (e.g. Sepolia via Alchemy)                                                           |
 
 ---
 
@@ -98,7 +98,7 @@ Use `secrets.yaml` (local, do not commit) or CRE secrets (production) for:
 
 Ensure `chainguard-sentinel/config.evm-triggered.json` (or the config used by your target) has:
 
-- `creConsumerAddress` – ChainGuardCREConsumer contract address (from [chain-guard-smart-contract](https://github.com/your-org/chain-guard-smart-contract) deploy)
+- `creConsumerAddress` – ChainGuardCREConsumer contract address (from [chain-guard-smart-contract](https://github.com/Sobilo34/chain-guard-smart-contract) deploy)
 - `chainSelectorName` – e.g. `ethereum-testnet-sepolia` for the consumer chain
 
 ---
@@ -107,7 +107,7 @@ Ensure `chainguard-sentinel/config.evm-triggered.json` (or the config used by yo
 
 ### Local simulation (with frontend listener)
 
-The [chain-guard](https://github.com/your-org/chain-guard) app runs a listener script that watches for `RiskAnalysisRequested` and executes:
+The [chain-guard](https://github.com/Sobilo34/chain-guard) app runs a listener script that watches for `RiskAnalysisRequested` and executes:
 
 ```bash
 cre workflow simulate ./chainguard-sentinel --target evm-triggered --evm-tx-hash <txHash> --broadcast
@@ -155,8 +155,8 @@ Frontend reads getAssessment(requestId)
 
 ## Related repositories
 
-- **[chain-guard](https://github.com/your-org/chain-guard)** – Frontend and API; calls consumer contract and runs the CRE listener for local dev.
-- **[chain-guard-smart-contract](https://github.com/your-org/chain-guard-smart-contract)** – ChainGuardCREConsumer and ChainGuardRegistry (Sepolia).
+- **[chain-guard](https://github.com/Sobilo34/chain-guard)** – Frontend and API; calls consumer contract and runs the CRE listener for local dev.
+- **[chain-guard-smart-contract](https://github.com/Sobilo34/chain-guard-smart-contract)** – ChainGuardCREConsumer and ChainGuardRegistry (Sepolia).
 
 ---
 

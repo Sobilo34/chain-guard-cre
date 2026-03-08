@@ -1,0 +1,6 @@
+{
+  "creConsumerAddress": "0x3F20408B82a0161b066ACAEF8E06aca1a2420583",
+  "chainSelectorName": "ethereum-testnet-sepolia",
+  "gasLimit": "800000",
+  "openRouterModel": "google/gemini-2.0-flash-001"
+}

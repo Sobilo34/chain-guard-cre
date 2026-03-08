@@ -181,7 +181,7 @@ export async function analyzeRiskWithGemini(
       }
     }
     if (!apiKeyValue) {
-      apiKeyValue = tryLoadOpenRouterKeyFromEnvFiles();
+      apiKeyValue = tryLoadGeminiKeyFromLocalFiles();
     }
 
     if (!apiKeyValue) {

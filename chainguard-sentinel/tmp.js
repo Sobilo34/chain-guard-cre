@@ -241,6 +241,7 @@ var init_abiItem = __esm(() => {
     }
   };
 });
+var InvalidAbiParametersError;
 var InvalidParameterError;
 var SolidityProtectedKeywordError;
 var InvalidModifierError;
@@ -248,6 +249,20 @@ var InvalidFunctionModifierError;
 var InvalidAbiTypeParameterError;
 var init_abiParameter = __esm(() => {
   init_errors();
+  InvalidAbiParametersError = class InvalidAbiParametersError2 extends BaseError {
+    constructor({ params }) {
+      super("Failed to parse ABI parameters.", {
+        details: `parseAbiParameters(${JSON.stringify(params, null, 2)})`,
+        docsPath: "/api/human#parseabiparameters-1"
+      });
+      Object.defineProperty(this, "name", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: "InvalidAbiParametersError"
+      });
+    }
+  };
   InvalidParameterError = class InvalidParameterError2 extends BaseError {
     constructor({ param }) {
       super("Invalid ABI parameter.", {
@@ -783,9 +798,43 @@ var init_parseAbi = __esm(() => {
   init_structs();
   init_utils();
 });
+function parseAbiParameters(params) {
+  const abiParameters = [];
+  if (typeof params === "string") {
+    const parameters = splitParameters(params);
+    const length = parameters.length;
+    for (let i2 = 0;i2 < length; i2++) {
+      abiParameters.push(parseAbiParameter(parameters[i2], { modifiers }));
+    }
+  } else {
+    const structs = parseStructs(params);
+    const length = params.length;
+    for (let i2 = 0;i2 < length; i2++) {
+      const signature = params[i2];
+      if (isStructSignature(signature))
+        continue;
+      const parameters = splitParameters(signature);
+      const length2 = parameters.length;
+      for (let k = 0;k < length2; k++) {
+        abiParameters.push(parseAbiParameter(parameters[k], { modifiers, structs }));
+      }
+    }
+  }
+  if (abiParameters.length === 0)
+    throw new InvalidAbiParametersError({ params });
+  return abiParameters;
+}
+var init_parseAbiParameters = __esm(() => {
+  init_abiParameter();
+  init_signatures();
+  init_structs();
+  init_utils();
+  init_utils();
+});
 var init_exports = __esm(() => {
   init_formatAbiItem();
   init_parseAbi();
+  init_parseAbiParameters();
 });
 function formatAbiItem2(abiItem, { includeName = false } = {}) {
   if (abiItem.type !== "function" && abiItem.type !== "event" && abiItem.type !== "error")
@@ -912,9 +961,13 @@ var AbiDecodingZeroDataError;
 var AbiEncodingArrayLengthMismatchError;
 var AbiEncodingBytesSizeMismatchError;
 var AbiEncodingLengthMismatchError;
+var AbiEventSignatureEmptyTopicsError;
+var AbiEventSignatureNotFoundError;
 var AbiFunctionNotFoundError;
 var AbiFunctionOutputsNotFoundError;
 var AbiItemAmbiguityError;
+var DecodeLogDataMismatch;
+var DecodeLogTopicsMismatch;
 var InvalidAbiEncodingTypeError;
 var InvalidAbiDecodingTypeError;
 var InvalidArrayError;
@@ -988,6 +1041,27 @@ var init_abi = __esm(() => {
 `), { name: "AbiEncodingLengthMismatchError" });
     }
   };
+  AbiEventSignatureEmptyTopicsError = class AbiEventSignatureEmptyTopicsError2 extends BaseError2 {
+    constructor({ docsPath }) {
+      super("Cannot extract event signature from empty topics.", {
+        docsPath,
+        name: "AbiEventSignatureEmptyTopicsError"
+      });
+    }
+  };
+  AbiEventSignatureNotFoundError = class AbiEventSignatureNotFoundError2 extends BaseError2 {
+    constructor(signature, { docsPath }) {
+      super([
+        `Encoded event signature "${signature}" not found on ABI.`,
+        "Make sure you are using the correct ABI and that the event exists on it.",
+        `You can look up the signature here: https://4byte.sourcify.dev/?q=${signature}.`
+      ].join(`
+`), {
+        docsPath,
+        name: "AbiEventSignatureNotFoundError"
+      });
+    }
+  };
   AbiFunctionNotFoundError = class AbiFunctionNotFoundError2 extends BaseError2 {
     constructor(functionName, { docsPath } = {}) {
       super([
@@ -1025,6 +1099,63 @@ var init_abi = __esm(() => {
         ],
         name: "AbiItemAmbiguityError"
       });
+    }
+  };
+  DecodeLogDataMismatch = class DecodeLogDataMismatch2 extends BaseError2 {
+    constructor({ abiItem, data, params, size: size2 }) {
+      super([
+        `Data size of ${size2} bytes is too small for non-indexed event parameters.`
+      ].join(`
+`), {
+        metaMessages: [
+          `Params: (${formatAbiParams(params, { includeName: true })})`,
+          `Data:   ${data} (${size2} bytes)`
+        ],
+        name: "DecodeLogDataMismatch"
+      });
+      Object.defineProperty(this, "abiItem", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: undefined
+      });
+      Object.defineProperty(this, "data", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: undefined
+      });
+      Object.defineProperty(this, "params", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: undefined
+      });
+      Object.defineProperty(this, "size", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: undefined
+      });
+      this.abiItem = abiItem;
+      this.data = data;
+      this.params = params;
+      this.size = size2;
+    }
+  };
+  DecodeLogTopicsMismatch = class DecodeLogTopicsMismatch2 extends BaseError2 {
+    constructor({ abiItem, param }) {
+      super([
+        `Expected a topic for indexed event parameter${param.name ? ` "${param.name}"` : ""} on event "${formatAbiItem2(abiItem, { includeName: true })}".`
+      ].join(`
+`), { name: "DecodeLogTopicsMismatch" });
+      Object.defineProperty(this, "abiItem", {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: undefined
+      });
+      this.abiItem = abiItem;
     }
   };
   InvalidAbiEncodingTypeError = class InvalidAbiEncodingTypeError2 extends BaseError2 {
@@ -2715,13 +2846,13 @@ function decodeFunctionResult(parameters) {
   if (functionName) {
     const item = getAbiItem({ abi, args, name: functionName });
     if (!item)
-      throw new AbiFunctionNotFoundError(functionName, { docsPath: docsPath2 });
+      throw new AbiFunctionNotFoundError(functionName, { docsPath: docsPath3 });
     abiItem = item;
   }
   if (abiItem.type !== "function")
-    throw new AbiFunctionNotFoundError(undefined, { docsPath: docsPath2 });
+    throw new AbiFunctionNotFoundError(undefined, { docsPath: docsPath3 });
   if (!abiItem.outputs)
-    throw new AbiFunctionOutputsNotFoundError(abiItem.name, { docsPath: docsPath2 });
+    throw new AbiFunctionOutputsNotFoundError(abiItem.name, { docsPath: docsPath3 });
   const values = decodeAbiParameters(abiItem.outputs, data);
   if (values && values.length > 1)
     return values;
@@ -2729,7 +2860,7 @@ function decodeFunctionResult(parameters) {
     return values[0];
   return;
 }
-var docsPath2 = "/docs/contract/decodeFunctionResult";
+var docsPath3 = "/docs/contract/decodeFunctionResult";
 var init_decodeFunctionResult = __esm(() => {
   init_abi();
   init_decodeAbiParameters();
@@ -6930,45 +7061,6 @@ var KeyType;
   KeyType2[KeyType2["UNSPECIFIED"] = 0] = "UNSPECIFIED";
   KeyType2[KeyType2["ECDSA_EVM"] = 1] = "ECDSA_EVM";
 })(KeyType || (KeyType = {}));
-var file_capabilities_scheduler_cron_v1_trigger = /* @__PURE__ */ fileDesc("CixjYXBhYmlsaXRpZXMvc2NoZWR1bGVyL2Nyb24vdjEvdHJpZ2dlci5wcm90bxIeY2FwYWJpbGl0aWVzLnNjaGVkdWxlci5jcm9uLnYxIhoKBkNvbmZpZxIQCghzY2hlZHVsZRgBIAEoCSJHCgdQYXlsb2FkEjwKGHNjaGVkdWxlZF9leGVjdXRpb25fdGltZRgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiNQoNTGVnYWN5UGF5bG9hZBIgChhzY2hlZHVsZWRfZXhlY3V0aW9uX3RpbWUYASABKAk6AhgBMvUBCgRDcm9uElwKB1RyaWdnZXISJi5jYXBhYmlsaXRpZXMuc2NoZWR1bGVyLmNyb24udjEuQ29uZmlnGicuY2FwYWJpbGl0aWVzLnNjaGVkdWxlci5jcm9uLnYxLlBheWxvYWQwARJzCg1MZWdhY3lUcmlnZ2VyEiYuY2FwYWJpbGl0aWVzLnNjaGVkdWxlci5jcm9uLnYxLkNvbmZpZxotLmNhcGFiaWxpdGllcy5zY2hlZHVsZXIuY3Jvbi52MS5MZWdhY3lQYXlsb2FkIgmIAgGKtRgCCAEwARoagrUYFggBEhJjcm9uLXRyaWdnZXJAMS4wLjBCzQEKImNvbS5jYXBhYmlsaXRpZXMuc2NoZWR1bGVyLmNyb24udjFCDFRyaWdnZXJQcm90b1ABogIDQ1NDqgIeQ2FwYWJpbGl0aWVzLlNjaGVkdWxlci5Dcm9uLlYxygIeQ2FwYWJpbGl0aWVzXFNjaGVkdWxlclxDcm9uXFYx4gIqQ2FwYWJpbGl0aWVzXFNjaGVkdWxlclxDcm9uXFYxXEdQQk1ldGFkYXRh6gIhQ2FwYWJpbGl0aWVzOjpTY2hlZHVsZXI6OkNyb246OlYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_tools_generator_v1alpha_cre_metadata]);
-var ConfigSchema2 = /* @__PURE__ */ messageDesc(file_capabilities_scheduler_cron_v1_trigger, 0);
-var PayloadSchema2 = /* @__PURE__ */ messageDesc(file_capabilities_scheduler_cron_v1_trigger, 1);
-
-class CronCapability {
-  static CAPABILITY_ID = "cron-trigger@1.0.0";
-  static CAPABILITY_NAME = "cron-trigger";
-  static CAPABILITY_VERSION = "1.0.0";
-  trigger(config) {
-    const capabilityId = CronCapability.CAPABILITY_ID;
-    return new CronTrigger(config, capabilityId, "Trigger");
-  }
-}
-
-class CronTrigger {
-  _capabilityId;
-  _method;
-  config;
-  constructor(config, _capabilityId, _method) {
-    this._capabilityId = _capabilityId;
-    this._method = _method;
-    this.config = config.$typeName ? config : fromJson(ConfigSchema2, config);
-  }
-  capabilityId() {
-    return this._capabilityId;
-  }
-  method() {
-    return this._method;
-  }
-  outputSchema() {
-    return PayloadSchema2;
-  }
-  configAsAny() {
-    return anyPack(ConfigSchema2, this.config);
-  }
-  adapt(rawOutput) {
-    return rawOutput;
-  }
-}
 var lookup = [];
 var revLookup = [];
 var code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -16804,90 +16896,104 @@ var sendErrorResponse = (error) => {
   }
   hostBindings.sendResponse(payload);
 };
-var AlertChannelSchema = exports_external.enum([
-  "email",
-  "slack",
-  "telegram",
-  "discord",
-  "onchain"
-]);
-var RiskThresholdsSchema = exports_external.object({
-  depegTolerance: exports_external.number().min(0).max(1).optional(),
-  volatilityMax: exports_external.number().min(0).max(10).optional(),
-  liquidityDropMax: exports_external.number().min(0).max(1).optional(),
-  collateralRatioMin: exports_external.number().min(0).optional(),
-  gasPriceMax: exports_external.number().min(0).optional(),
-  customThreshold: exports_external.number().optional()
-});
-var PriceFeedConfigSchema = exports_external.object({
-  feedAddress: exports_external.string().regex(/^0x[a-fA-F0-9]{40}$/u),
-  pairName: exports_external.string(),
-  decimals: exports_external.number().int().min(0).max(18),
-  heartbeat: exports_external.number().int().min(0).optional()
-});
-var MonitoredContractSchema = exports_external.object({
-  address: exports_external.string().regex(/^0x[a-fA-F0-9]{40}$/u, "Must be valid Ethereum address"),
-  name: exports_external.string().min(1),
-  chainSelectorName: exports_external.string().min(1),
-  riskThresholds: RiskThresholdsSchema,
-  alertChannels: exports_external.array(AlertChannelSchema).min(1),
-  priceFeeds: exports_external.array(PriceFeedConfigSchema).optional(),
-  abi: exports_external.array(exports_external.any()).optional(),
-  monitoredFunctions: exports_external.array(exports_external.string()).optional(),
-  ownerAddresses: exports_external.array(exports_external.string().regex(/^0x[a-fA-F0-9]{40}$/u)).optional(),
-  metadata: exports_external.record(exports_external.string(), exports_external.any()).optional()
-});
-var EmailConfigSchema = exports_external.object({
-  from: exports_external.string().email(),
-  to: exports_external.array(exports_external.string().email()).min(1),
-  subject: exports_external.string().optional(),
-  apiEndpoint: exports_external.string().url().optional()
-});
-var configSchema = exports_external.object({
-  openRouterModel: exports_external.string().optional(),
-  geminiModel: exports_external.string().optional(),
-  cronSchedule: exports_external.string().optional(),
-  monitoredContracts: exports_external.array(MonitoredContractSchema).min(1),
-  gasLimit: exports_external.string().regex(/^\d+$/).optional(),
-  emailConfig: EmailConfigSchema.optional(),
-  verboseLogging: exports_external.boolean().optional(),
-  maxContractsPerRun: exports_external.number().int().min(1).max(100).optional(),
-  aiTimeoutMs: exports_external.number().int().min(1000).optional(),
-  geminiTimeoutMs: exports_external.number().int().min(1000).optional()
-}).passthrough();
-var RiskTypeSchema = exports_external.enum([
-  "DEPEG",
-  "VOLATILITY",
-  "LIQUIDITY",
-  "COLLATERAL",
-  "GAS_SPIKE",
-  "MANIPULATION",
-  "EXPLOIT",
-  "CUSTOM"
-]);
-var RiskLevelSchema = exports_external.enum([
-  "LOW",
-  "MEDIUM",
-  "HIGH",
-  "CRITICAL"
-]);
-var GeminiRiskResponseSchema = exports_external.object({
-  riskLevel: RiskLevelSchema,
-  riskType: RiskTypeSchema,
-  confidence: exports_external.number().int().min(0).max(1e4),
-  reasoning: exports_external.string(),
-  cause: exports_external.string(),
-  consequences: exports_external.string(),
-  nextSteps: exports_external.array(exports_external.string()),
-  suggestedActions: exports_external.array(exports_external.string()),
-  affectedMetrics: exports_external.array(exports_external.string()).optional(),
-  estimatedImpact: exports_external.string().optional(),
-  mitigationStrategy: exports_external.string().optional()
-});
 init_exports();
+init_abi();
+init_cursor();
+init_size();
+init_toEventSelector();
+init_decodeAbiParameters();
+init_formatAbiItem2();
+var docsPath2 = "/docs/contract/decodeEventLog";
+function decodeEventLog(parameters) {
+  const { abi, data, strict: strict_, topics } = parameters;
+  const strict = strict_ ?? true;
+  const [signature, ...argTopics] = topics;
+  if (!signature)
+    throw new AbiEventSignatureEmptyTopicsError({ docsPath: docsPath2 });
+  const abiItem = abi.find((x) => x.type === "event" && signature === toEventSelector(formatAbiItem2(x)));
+  if (!(abiItem && ("name" in abiItem)) || abiItem.type !== "event")
+    throw new AbiEventSignatureNotFoundError(signature, { docsPath: docsPath2 });
+  const { name, inputs } = abiItem;
+  const isUnnamed = inputs?.some((x) => !(("name" in x) && x.name));
+  const args = isUnnamed ? [] : {};
+  const indexedInputs = inputs.map((x, i2) => [x, i2]).filter(([x]) => ("indexed" in x) && x.indexed);
+  const missingIndexedInputs = [];
+  for (let i2 = 0;i2 < indexedInputs.length; i2++) {
+    const [param, argIndex] = indexedInputs[i2];
+    const topic = argTopics[i2];
+    if (!topic) {
+      if (strict)
+        throw new DecodeLogTopicsMismatch({
+          abiItem,
+          param
+        });
+      missingIndexedInputs.push([param, argIndex]);
+      continue;
+    }
+    args[isUnnamed ? argIndex : param.name || argIndex] = decodeTopic({
+      param,
+      value: topic
+    });
+  }
+  const nonIndexedInputs = inputs.filter((x) => !(("indexed" in x) && x.indexed));
+  const inputsToDecode = strict ? nonIndexedInputs : [...missingIndexedInputs.map(([param]) => param), ...nonIndexedInputs];
+  if (inputsToDecode.length > 0) {
+    if (data && data !== "0x") {
+      try {
+        const decodedData = decodeAbiParameters(inputsToDecode, data);
+        if (decodedData) {
+          let dataIndex = 0;
+          if (!strict) {
+            for (const [param, argIndex] of missingIndexedInputs) {
+              args[isUnnamed ? argIndex : param.name || argIndex] = decodedData[dataIndex++];
+            }
+          }
+          if (isUnnamed) {
+            for (let i2 = 0;i2 < inputs.length; i2++)
+              if (args[i2] === undefined && dataIndex < decodedData.length)
+                args[i2] = decodedData[dataIndex++];
+          } else
+            for (let i2 = 0;i2 < nonIndexedInputs.length; i2++)
+              args[nonIndexedInputs[i2].name] = decodedData[dataIndex++];
+        }
+      } catch (err) {
+        if (strict) {
+          if (err instanceof AbiDecodingDataSizeTooSmallError || err instanceof PositionOutOfBoundsError)
+            throw new DecodeLogDataMismatch({
+              abiItem,
+              data,
+              params: inputsToDecode,
+              size: size(data)
+            });
+          throw err;
+        }
+      }
+    } else if (strict) {
+      throw new DecodeLogDataMismatch({
+        abiItem,
+        data: "0x",
+        params: inputsToDecode,
+        size: 0
+      });
+    }
+  }
+  return {
+    eventName: name,
+    args: Object.values(args).length > 0 ? args : undefined
+  };
+}
+function decodeTopic({ param, value: value2 }) {
+  if (param.type === "string" || param.type === "bytes" || param.type === "tuple" || param.type.match(/^(.*)\[(\d+)?\]$/))
+    return value2;
+  const decodedArg = decodeAbiParameters([param], value2) || [];
+  return decodedArg[0];
+}
 var zeroAddress = "0x0000000000000000000000000000000000000000";
 init_decodeFunctionResult();
+init_encodeAbiParameters();
 init_encodeFunctionData();
+init_toBytes();
+init_keccak256();
 var getErc20Abi = () => parseAbi([
   "function balanceOf(address owner) view returns (uint256)",
   "function totalSupply() view returns (uint256)",
@@ -17284,6 +17390,7 @@ function getDefaultFeedForChain(chainSelectorName) {
   }
   return null;
 }
+var { default: fs } = () => ({});
 function assertPath(path) {
   if (typeof path !== "string")
     throw TypeError("Path must be a string. Received " + JSON.stringify(path));
@@ -17602,6 +17709,7 @@ function parse(path) {
 var sep = "/";
 var delimiter = ":";
 var posix = ((p) => (p.posix = p, p))({ resolve, normalize, isAbsolute, join, relative, _makeLong, dirname, basename, extname, format, parse, sep, delimiter, win32: null, posix: null });
+var path_default = posix;
 var SYSTEM_PROMPT = `
 You are an expert DeFi risk analyst specializing in smart contract and market risk assessment.
 Your task is to analyze on-chain data and market metrics and provide COMPREHENSIVE, DETAILED analysis.
@@ -17679,6 +17787,32 @@ Provide a detailed risk assessment in the required JSON format:
 - If risks exist: identify which dimension(s) (e.g. depeg, volatility, liquidity) and explain cause, consequences, estimated impact, and a clear step-by-step mitigation strategy with immediate next steps and long-term actions.
 - If risk is low: explain comprehensively why the contract is currently safe, which metrics and dimensions you reviewed, and provide concrete tips to safeguard the contract for future occurrence (monitoring, parameters, audits, data feed redundancy, emergency procedures). Include these in mitigationStrategy and suggestedActions.
 `;
+function tryLoadGeminiKeyFromLocalFiles() {
+  const cwd = globalThis?.process?.cwd?.() || "";
+  if (!cwd)
+    return "";
+  const candidates = [
+    path_default.join(cwd, ".env"),
+    path_default.join(cwd, "secrets.yaml"),
+    path_default.join(cwd, "..", ".env"),
+    path_default.join(cwd, "..", "secrets.yaml"),
+    path_default.join(cwd, "chainguard-sentinel", "..", "secrets.yaml")
+  ];
+  for (const filePath of candidates) {
+    try {
+      if (!fs.existsSync(filePath))
+        continue;
+      const raw = fs.readFileSync(filePath, "utf8");
+      const envMatch = raw.match(/^\s*(OPENROUTER_API_KEY|GEMINI_API_KEY)\s*=\s*['\"]?([^'\"\n]+)['\"]?\s*$/m);
+      if (envMatch?.[2])
+        return envMatch[2].trim();
+      const yamlMatch = raw.match(/^\s*(OPENROUTER_API_KEY|GEMINI_API_KEY)\s*:\s*['\"]?([^'\"\n]+)['\"]?\s*$/m);
+      if (yamlMatch?.[2])
+        return yamlMatch[2].trim();
+    } catch {}
+  }
+  return "";
+}
 async function analyzeRiskWithGemini(runtime2, contractName, contractAddress, chainName, marketData, contractState, riskThresholds) {
   try {
     runtime2.log(`Querying OpenRouter AI for risk analysis: ${contractName}`);
@@ -17695,7 +17829,7 @@ async function analyzeRiskWithGemini(runtime2, contractName, contractAddress, ch
       }
     }
     if (!apiKeyValue) {
-      apiKeyValue = tryLoadOpenRouterKeyFromEnvFiles();
+      apiKeyValue = tryLoadGeminiKeyFromLocalFiles();
     }
     if (!apiKeyValue) {
       runtime2.log("OpenRouter API key missing. Set OPENROUTER_API_KEY in .env or config.");
@@ -18071,445 +18205,143 @@ function determineShouldAlert(violations, aiRiskLevel, overallRiskScore) {
   }
   return false;
 }
-function generateRiskSummary(assessment) {
-  const parts = [];
-  if (assessment.overallRiskScore >= 80) {
-    parts.push(`\uD83D\uDD34 CRITICAL RISK DETECTED (Score: ${assessment.overallRiskScore}/100)`);
-  } else if (assessment.overallRiskScore >= 60) {
-    parts.push(`\uD83D\uDFE0 HIGH RISK DETECTED (Score: ${assessment.overallRiskScore}/100)`);
-  } else if (assessment.overallRiskScore >= 40) {
-    parts.push(`\uD83D\uDFE1 MEDIUM RISK DETECTED (Score: ${assessment.overallRiskScore}/100)`);
-  } else if (assessment.overallRiskScore >= 20) {
-    parts.push(`\uD83D\uDFE2 LOW RISK DETECTED (Score: ${assessment.overallRiskScore}/100)`);
-  } else {
-    parts.push(`✅ MINIMAL RISK (Score: ${assessment.overallRiskScore}/100)`);
-  }
-  if (assessment.thresholdViolations.length > 0) {
-    parts.push(`
-${assessment.thresholdViolations.length} threshold violation(s) detected:`);
-    for (const violation of assessment.thresholdViolations) {
-      const pct = ((violation.currentValue / violation.thresholdValue - 1) * 100).toFixed(1);
-      parts.push(`  • ${violation.type}: ${(violation.currentValue * 100).toFixed(2)}% (${pct}% over threshold) [${violation.severity}]`);
-    }
-  }
-  parts.push(`
-AI Analysis: ${assessment.aiAnalysis.riskType} risk at ${assessment.aiAnalysis.riskLevel} level`);
-  return parts.join(`
-`);
-}
-function generateDetailedReasoning(assessment) {
-  const parts = [];
-  parts.push(assessment.aiAnalysis.reasoning);
-  if (assessment.thresholdViolations.length > 0) {
-    parts.push(`
-
-Threshold Violations:`);
-    for (const violation of assessment.thresholdViolations) {
-      const pct = ((violation.currentValue / violation.thresholdValue - 1) * 100).toFixed(1);
-      parts.push(`- ${violation.type}: Current ${(violation.currentValue * 100).toFixed(2)}% exceeds threshold of ${(violation.thresholdValue * 100).toFixed(2)}% by ${pct}% (${violation.severity} severity)`);
-    }
-  }
-  if (assessment.marketData.currentPrice !== undefined) {
-    parts.push(`
-
-Market Context:`);
-    parts.push(`- Current Price: $${assessment.marketData.currentPrice.toFixed(4)}`);
-    if (assessment.marketData.priceChange24h !== undefined) {
-      parts.push(`- 24h Change: ${(assessment.marketData.priceChange24h * 100).toFixed(2)}%`);
-    }
-    if (assessment.marketData.volatility24h !== undefined) {
-      parts.push(`- 24h Volatility: ${(assessment.marketData.volatility24h * 100).toFixed(2)}%`);
-    }
-  }
-  return parts.join(`
-`);
-}
-function sendAlerts(runtime2, alert, channels) {
-  const results = [];
-  runtime2.log(`Sending ${alert.riskLevel} alert to ${channels.length} channel(s)`);
-  for (const channel of channels) {
-    try {
-      let result;
-      switch (channel) {
-        case "email":
-          result = sendEmailAlert(runtime2, alert);
-          break;
-        case "slack":
-          runtime2.log("Slack notifications disabled");
-          result = {
-            channel: "slack",
-            success: false,
-            timestamp: new Date(runtime2.now()).toISOString(),
-            error: "Channel disabled"
-          };
-          break;
-        case "telegram":
-          runtime2.log("Telegram notifications disabled");
-          result = {
-            channel: "telegram",
-            success: false,
-            timestamp: new Date(runtime2.now()).toISOString(),
-            error: "Channel disabled"
-          };
-          break;
-        case "discord":
-          runtime2.log("Discord notifications disabled");
-          result = {
-            channel: "discord",
-            success: false,
-            timestamp: new Date(runtime2.now()).toISOString(),
-            error: "Channel disabled"
-          };
-          break;
-        case "onchain":
-          result = sendOnChainAlert(runtime2, alert);
-          break;
-        default:
-          result = {
-            channel,
-            success: false,
-            timestamp: new Date(runtime2.now()).toISOString(),
-            error: `Unsupported channel: ${channel}`
-          };
-      }
-      results.push(result);
-      if (result.success) {
-        runtime2.log(`✓ Alert sent via ${channel}`);
-      } else {
-        runtime2.log(`✗ Failed to send via ${channel}: ${result.error}`);
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      runtime2.log(`Error sending alert via ${channel}: ${msg}`);
-      results.push({
-        channel,
-        success: false,
-        timestamp: new Date(runtime2.now()).toISOString(),
-        error: msg
-      });
-    }
-  }
-  const successCount = results.filter((r) => r.success).length;
-  runtime2.log(`Alert delivery: ${successCount}/${channels.length} successful`);
-  return results;
-}
-function sendEmailAlert(runtime2, alert) {
-  try {
-    const emailApiKey = runtime2.getSecret({ id: "EMAIL_API_KEY" }).result();
-    if (!emailApiKey.value) {
-      throw new Error("EMAIL_API_KEY not configured");
-    }
-    const emailConfig = runtime2.config.emailConfig;
-    if (!emailConfig) {
-      throw new Error("Email configuration not found in config");
-    }
-    const subject = `[ChainGuard] ${alert.riskLevel} Risk Alert: ${alert.contractName}`;
-    const htmlBody = buildEmailHTML(alert);
-    const textBody = buildEmailText(alert);
-    const emailPayload = {
-      from: emailConfig.from,
-      to: emailConfig.to,
-      subject,
-      html: htmlBody,
-      text: textBody
-    };
-    const httpClient = new ClientCapability2;
-    const response = httpClient.sendRequest(runtime2, (sendRequester) => {
-      return sendRequester.sendRequest({
-        method: "POST",
-        url: emailConfig.apiEndpoint || "https://api.resend.com/emails",
-        headers: {
-          Authorization: `Bearer ${emailApiKey.value}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(emailPayload)
-      }).result();
-    }, (responses) => responses[0])().result();
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      let messageId = response.statusCode.toString();
-      try {
-        const responseBody = new TextDecoder().decode(response.body);
-        const parsed = JSON.parse(responseBody);
-        messageId = parsed.id || messageId;
-      } catch {}
-      return {
-        channel: "email",
-        success: true,
-        timestamp: new Date(runtime2.now()).toISOString(),
-        messageId
-      };
-    } else {
-      throw new Error(`Email API returned status ${response.statusCode}`);
-    }
-  } catch (err) {
-    return {
-      channel: "email",
-      success: false,
-      timestamp: new Date(runtime2.now()).toISOString(),
-      error: err instanceof Error ? err.message : String(err)
-    };
-  }
-}
-function sendOnChainAlert(runtime2, alert) {
-  runtime2.log("On-chain alerts not yet implemented");
-  return {
-    channel: "onchain",
-    success: false,
-    timestamp: new Date(runtime2.now()).toISOString(),
-    error: "Not implemented - requires notification contract deployment"
-  };
-}
-function buildEmailHTML(alert) {
-  const riskColor = getRiskColorHex(alert.riskLevel);
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: ${riskColor}; color: white; padding: 20px; border-radius: 5px 5px 0 0; }
-    .content { background: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; }
-    .metric { background: white; padding: 10px; margin: 10px 0; border-left: 4px solid ${riskColor}; }
-    .actions { background: #fff3cd; padding: 15px; border-radius: 5px; margin-top: 15px; }
-    .footer { text-align: center; margin-top: 20px; font-size: 0.9em; color: #666; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>\uD83D\uDEA8 ${alert.riskLevel} Risk Alert</h1>
-      <p>${alert.contractName}</p>
-    </div>
-    <div class="content">
-      <h2>Summary</h2>
-      <p>${alert.summary}</p>
-      
-      <h3>Details</h3>
-      <div class="metric"><strong>Contract:</strong> ${alert.contractAddress}</div>
-      <div class="metric"><strong>Chain:</strong> ${alert.chainSelectorName}</div>
-      <div class="metric"><strong>Risk Type:</strong> ${alert.riskType}</div>
-      <div class="metric"><strong>Risk Score:</strong> ${alert.riskScore}/100</div>
-      
-      <h3>Deep Analysis</h3>
-      <div class="metric"><strong>Root Cause:</strong> ${alert.cause}</div>
-      <div class="metric"><strong>Potential Consequences:</strong> ${alert.consequences}</div>
-      
-      <div class="actions">
-        <h3>Immediate Next Steps</h3>
-        <ul>
-          ${alert.nextSteps.map((a) => `<li>${a}</li>`).join("")}
-        </ul>
-      </div>
-
-      <div class="actions" style="background: #e7f3ff; border-left: 4px solid #007bff;">
-        <h3>Mitigation Strategy</h3>
-        <p>${alert.mitigationStrategy}</p>
-      </div>
-      
-      <div class="actions">
-        <h3>Long-term Actions</h3>
-        <ul>
-          ${alert.suggestedActions.map((a) => `<li>${a}</li>`).join("")}
-        </ul>
-      </div>
-      
-      <div class="footer">
-        <p>Alert ID: ${alert.alertId}<br>
-        Timestamp: ${alert.timestamp}<br>
-        Powered by ChainGuard Sentinel</p>
-      </div>
-    </div>
-  </div>
-</body>
-</html>
-  `.trim();
-}
-function buildEmailText(alert) {
-  return `
-ChainGuard Sentinel Alert
-========================
-
-RISK LEVEL: ${alert.riskLevel}
-Contract: ${alert.contractName}
-Address: ${alert.contractAddress}
-Chain: ${alert.chainSelectorName}
-
-SUMMARY
-${alert.summary}
-
-RISK TYPE: ${alert.riskType}
-RISK SCORE: ${alert.riskScore}/100
-
-DEEP ANALYSIS
------------
-ROOT CAUSE: ${alert.cause}
-CONSEQUENCES: ${alert.consequences}
-
-IMMEDIATE NEXT STEPS:
-${alert.nextSteps.map((a, i2) => `${i2 + 1}. ${a}`).join(`
-`)}
-
-MITIGATION STRATEGY:
-${alert.mitigationStrategy}
-
-LONG-TERM ACTIONS:
-${alert.suggestedActions.map((a, i2) => `${i2 + 1}. ${a}`).join(`
-`)}
-
----
-Alert ID: ${alert.alertId}
-Timestamp: ${alert.timestamp}
-Powered by ChainGuard Sentinel
-  `.trim();
-}
-function getRiskColorHex(level) {
+var evmTriggerConfigSchema = exports_external.object({
+  creConsumerAddress: exports_external.string().min(1),
+  chainSelectorName: exports_external.string().min(1),
+  gasLimit: exports_external.string().optional(),
+  openRouterModel: exports_external.string().optional(),
+  openRouterApiKey: exports_external.string().optional(),
+  monitoredContracts: exports_external.array(exports_external.any()).optional()
+}).passthrough();
+var RISK_ANALYSIS_REQUESTED_ABI = parseAbi([
+  "event RiskAnalysisRequested(bytes32 indexed requestId, address indexed contractAddress, string chainSelectorName, address indexed requester)"
+]);
+function riskLevelToUint8(level) {
   switch (level) {
-    case "CRITICAL":
-      return "#FF0000";
-    case "HIGH":
-      return "#FF6600";
-    case "MEDIUM":
-      return "#FFCC00";
     case "LOW":
-      return "#00CC00";
+      return 0;
+    case "MEDIUM":
+      return 1;
+    case "HIGH":
+      return 2;
+    case "CRITICAL":
+      return 3;
     default:
-      return "#999999";
+      return 0;
   }
 }
-var contractDatabase = new Map;
-function generateContractKey(address, chainSelectorName) {
-  return `${chainSelectorName}:${address.toLowerCase()}`;
+function truncateSummary(s, maxLen = 64) {
+  if (!s || s.length <= maxLen)
+    return s;
+  return s.slice(0, maxLen - 3) + "...";
 }
-function initializeFromConfig(config) {
-  for (const contract of config.monitoredContracts) {
-    const key = generateContractKey(contract.address, contract.chainSelectorName);
-    contractDatabase.set(key, contract);
+async function onEVMLogTrigger(runtime2, log) {
+  const config = runtime2.config;
+  const topics = log.topics.map((t) => bytesToHex(t));
+  const data = bytesToHex(log.data);
+  const decoded = decodeEventLog({
+    abi: RISK_ANALYSIS_REQUESTED_ABI,
+    data,
+    topics
+  });
+  if (decoded.eventName !== "RiskAnalysisRequested") {
+    runtime2.log(`Ignoring event: ${decoded.eventName}`);
+    return "ignored";
   }
-}
-function getAllMonitoredContracts() {
-  return Array.from(contractDatabase.values());
-}
-var createOnCronTrigger = (config) => {
-  let initialized = false;
-  return async (runtime2, _payload) => {
-    const executionId = `run-${runtime2.now()}`;
-    runtime2.log(`Starting ChainGuard Sentinel run ${executionId}`);
-    if (!initialized) {
-      initializeFromConfig(config);
-      initialized = true;
-      runtime2.log(`Loaded ${config.monitoredContracts.length} contract(s) from config`);
-    }
-    const contracts = getAllMonitoredContracts();
-    if (contracts.length === 0) {
-      runtime2.log("No monitored contracts configured. Skipping run.");
-      return "no-contracts";
-    }
-    const maxContracts = config.maxContractsPerRun ?? contracts.length;
-    const contractsToProcess = contracts.slice(0, maxContracts);
-    let alertCount = 0;
-    for (const contract of contractsToProcess) {
-      runtime2.log(`Processing ${contract.name} (${contract.address}) on ${contract.chainSelectorName}`);
-      try {
-        const contractState = fetchContractState(runtime2, contract);
-        const marketData = buildMarketDataSnapshot(runtime2, contract);
-        runtime2.log(`Starting AI analysis for ${contract.name}`);
-        const aiAnalysis = await analyzeRiskWithGemini(runtime2, contract.name, contract.address, contract.chainSelectorName, marketData, contractState, contract.riskThresholds);
-        runtime2.log(`AI analysis completed for ${contract.name}. Level: ${aiAnalysis.riskLevel}`);
-        const assessment = evaluateRisk(runtime2, contract, marketData, contractState, aiAnalysis);
-        if (assessment.shouldAlert) {
-          const alert = buildAlertPayload(runtime2, assessment, executionId);
-          const deliveryResults = sendAlerts(runtime2, alert, contract.alertChannels);
-          const successCount = deliveryResults.filter((r) => r.success).length;
-          alertCount += 1;
-          runtime2.log(`Alert dispatched (${successCount}/${contract.alertChannels.length} channels succeeded)`);
-        } else {
-          runtime2.log(`No alert triggered for ${contract.name}`);
-        }
-        const ai = assessment.aiAnalysis;
-        const latestScan = {
-          reasoning: (ai.reasoning ?? "").trim(),
-          cause: (ai.cause ?? "").trim(),
-          consequences: (ai.consequences ?? "").trim(),
-          estimatedImpact: (ai.estimatedImpact ?? "").trim(),
-          mitigationStrategy: (ai.mitigationStrategy ?? "").trim(),
-          nextSteps: Array.isArray(ai.nextSteps) ? ai.nextSteps : [],
-          suggestedActions: Array.isArray(ai.suggestedActions) ? ai.suggestedActions : [],
-          affectedMetrics: Array.isArray(ai.affectedMetrics) ? ai.affectedMetrics : [],
-          riskType: ai.riskType,
-          riskLevel: ai.riskLevel
-        };
-        const payload = {
-          contractAddress: assessment.contractAddress,
-          riskLevel: ai.riskLevel,
-          riskScore: assessment.overallRiskScore,
-          metrics: {
-            volatility: assessment.marketData.volatility24h,
-            tvl: assessment.marketData.totalValueLocked,
-            liquidity: assessment.marketData.totalLiquidity,
-            currentPrice: assessment.marketData.currentPrice,
-            chainSelectorName: assessment.marketData.chainSelectorName,
-            timestamp: assessment.marketData.timestamp
-          },
-          latestScan
-        };
-        runtime2.log(`[SENTINEL_ASSESSMENT] ` + JSON.stringify(payload));
-      } catch (err) {
-        runtime2.log(`Error processing ${contract.name}: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    }
-    return `Processed ${contractsToProcess.length} contracts, sent ${alertCount} alerts.`;
+  const { requestId, contractAddress, chainSelectorName } = decoded.args;
+  runtime2.log(`Processing request ${bytesToHex(requestId)} for ${contractAddress} on ${chainSelectorName}`);
+  const network248 = getNetwork({
+    chainFamily: "evm",
+    chainSelectorName,
+    isTestnet: false
+  });
+  if (!network248) {
+    runtime2.log(`Unknown chain: ${chainSelectorName}`);
+    return "unknown-chain";
+  }
+  const contract = {
+    address: contractAddress,
+    name: `Contract ${contractAddress.slice(0, 10)}...`,
+    chainSelectorName,
+    riskThresholds: {
+      depegTolerance: 0.02,
+      volatilityMax: 0.15,
+      liquidityDropMax: 0.25,
+      collateralRatioMin: 1.5
+    },
+    alertChannels: ["onchain"],
+    priceFeeds: [{ pairName: "ETH/USD", feedAddress: "0x5f4eC3Dd9Bbd43714FE2740F5E3616155c5b8419", decimals: 8 }]
   };
-};
-function buildAlertPayload(runtime2, assessment, executionId) {
-  let riskLevel = assessment.aiAnalysis.riskLevel;
-  if (assessment.overallRiskScore >= 80)
-    riskLevel = "CRITICAL";
-  else if (assessment.overallRiskScore >= 60)
-    riskLevel = "HIGH";
-  else if (assessment.overallRiskScore >= 40)
-    riskLevel = "MEDIUM";
-  else
-    riskLevel = "LOW";
-  const summary = generateRiskSummary(assessment);
-  const reasoning = generateDetailedReasoning(assessment);
-  const alert = {
-    alertId: `${executionId}-${assessment.contractAddress.substring(0, 8)}`,
-    timestamp: new Date(runtime2.now()).toISOString(),
-    contractAddress: assessment.contractAddress,
-    contractName: assessment.contractName,
-    chainSelectorName: assessment.chainSelectorName,
-    riskLevel,
-    riskType: assessment.aiAnalysis.riskType,
-    riskScore: assessment.overallRiskScore,
-    summary,
-    reasoning: assessment.aiAnalysis.reasoning || reasoning,
-    cause: assessment.aiAnalysis.cause || "Market Anomaly",
-    consequences: assessment.aiAnalysis.consequences || "Potential loss of funds or depeg",
-    nextSteps: assessment.aiAnalysis.nextSteps || assessment.aiAnalysis.suggestedActions || [],
-    mitigationStrategy: assessment.aiAnalysis.mitigationStrategy,
-    triggeredMetrics: assessment.thresholdViolations.map((v) => ({
-      name: v.type,
-      currentValue: v.currentValue,
-      threshold: v.thresholdValue
-    })),
-    suggestedActions: assessment.aiAnalysis.suggestedActions,
-    rawMarketData: assessment.marketData
-  };
-  return alert;
+  const tStart = Date.now();
+  runtime2.log(`[timing] start request ${bytesToHex(requestId)}`);
+  const tBeforeStateMarket = Date.now();
+  const [contractState, marketData] = await Promise.all([
+    Promise.resolve().then(() => fetchContractState(runtime2, contract)),
+    Promise.resolve().then(() => buildMarketDataSnapshot(runtime2, contract))
+  ]);
+  runtime2.log(`[timing] state+market (parallel) done in ${((Date.now() - tBeforeStateMarket) / 1000).toFixed(1)}s`);
+  const tBeforeAI = Date.now();
+  const aiAnalysis = await analyzeRiskWithGemini(runtime2, contract.name, contractAddress, chainSelectorName, marketData, contractState, contract.riskThresholds);
+  runtime2.log(`[timing] analyzeRiskWithGemini done in ${((Date.now() - tBeforeAI) / 1000).toFixed(1)}s`);
+  const assessment = evaluateRisk(runtime2, contract, marketData, contractState, aiAnalysis);
+  const riskLevelU8 = riskLevelToUint8(aiAnalysis.riskLevel);
+  const riskScore = BigInt(Math.min(100, Math.max(0, assessment.overallRiskScore)));
+  const summary = truncateSummary(aiAnalysis.reasoning || "No reasoning provided.");
+  const reportData = encodeAbiParameters(parseAbiParameters("bytes32 requestId, address contractAddress, string chainSelectorName, uint8 riskLevel, uint256 riskScore, string summary"), [requestId, contractAddress, chainSelectorName, riskLevelU8, riskScore, summary]);
+  const reportPayloadBytes = (typeof reportData === "string" && reportData.startsWith("0x") ? reportData.length - 2 : reportData.length) / 2;
+  runtime2.log(`[onchain report] summary=${summary.length} chars, chainSelectorName=${chainSelectorName.length} chars, payload=${reportPayloadBytes} bytes`);
+  const tBeforeReport = Date.now();
+  const reportResponse = runtime2.report({
+    encodedPayload: hexToBase64(reportData),
+    encoderName: "evm",
+    signingAlgo: "ecdsa",
+    hashingAlgo: "keccak256"
+  }).result();
+  runtime2.log(`[timing] runtime.report done in ${((Date.now() - tBeforeReport) / 1000).toFixed(1)}s`);
+  const writeNetwork = getNetwork({
+    chainFamily: "evm",
+    chainSelectorName: config.chainSelectorName,
+    isTestnet: true
+  });
+  if (!writeNetwork) {
+    throw new Error(`Write chain not found: ${config.chainSelectorName}`);
+  }
+  const evmClient = new ClientCapability(writeNetwork.chainSelector.selector);
+  const tBeforeWrite = Date.now();
+  const writeResult = evmClient.writeReport(runtime2, {
+    receiver: config.creConsumerAddress,
+    report: reportResponse,
+    gasConfig: { gasLimit: config.gasLimit || "500000" }
+  }).result();
+  runtime2.log(`[timing] writeReport done in ${((Date.now() - tBeforeWrite) / 1000).toFixed(1)}s`);
+  if (writeResult.txStatus === TxStatus.SUCCESS) {
+    runtime2.log(`Report submitted for request ${bytesToHex(requestId)} (total ${((Date.now() - tStart) / 1000).toFixed(1)}s)`);
+    return bytesToHex(writeResult.txHash || new Uint8Array(32));
+  }
+  runtime2.log(`Write failed: ${writeResult.txStatus}`);
+  throw new Error(`Write report failed: ${writeResult.txStatus}`);
 }
-var initWorkflow = (config) => {
-  const cron = new CronCapability;
-  const onCronTrigger = createOnCronTrigger(config);
+function initEVMTriggerWorkflow(config) {
+  const network248 = getNetwork({
+    chainFamily: "evm",
+    chainSelectorName: config.chainSelectorName,
+    isTestnet: true
+  });
+  if (!network248) {
+    throw new Error(`Network not found: ${config.chainSelectorName}`);
+  }
+  const evmClient = new ClientCapability(network248.chainSelector.selector);
+  const eventSigHash = keccak256(toBytes("RiskAnalysisRequested(bytes32,address,string,address)"));
   return [
-    handler(cron.trigger({
-      schedule: config.cronSchedule ?? "*/15 * * * *"
-    }), onCronTrigger)
+    handler(evmClient.logTrigger({
+      addresses: [hexToBase64(config.creConsumerAddress)],
+      topics: [{ values: [hexToBase64(eventSigHash)] }]
+    }), onEVMLogTrigger)
   ];
-};
+}
 async function main() {
-  const runner = await Runner.newRunner({ configSchema });
-  await runner.run(initWorkflow);
+  const runner = await Runner.newRunner({ configSchema: evmTriggerConfigSchema });
+  await runner.run(initEVMTriggerWorkflow);
 }
 main().catch(sendErrorResponse);
 export {

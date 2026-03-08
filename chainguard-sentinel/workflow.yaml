@@ -30,6 +30,18 @@ production:
     workflow-path: "./main.ts"
     config-path: "./config.production.json"
     secrets-path: "../secrets.yaml"
+# ==========================================================================
+# EVM-triggered: request from ChainGuardCREConsumer → CRE runs → writes report onchain
+# ==========================================================================
+evm-triggered:
+  user-workflow:
+    workflow-name: "chainguard-sentinel-evm-triggered"
+  workflow-artifacts:
+    workflow-path: "./evm-triggered-workflow.ts"
+    config-path: "./config.evm-triggered.json"
+    secrets-path: "../secrets.yaml"
+
+# ==========================================================================
 local-simulation-minimal:
   user-workflow:
     workflow-name: "minimal-test"

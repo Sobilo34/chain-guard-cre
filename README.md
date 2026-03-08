@@ -86,7 +86,15 @@ EMAIL_API_KEY: "your-email-api-key"
 SLACK_WEBHOOK_URL: "https://hooks.slack.com/..."
 ```
 
-### 4. Configure Monitoring
+### 4. Fast "Writing report on-chain" (Alchemy RPC)
+
+The workflow writes the risk report to the consumer contract on Sepolia. To avoid slow public RPCs (e.g. 7+ minute waits), use Alchemy:
+
+1. In the project root, open `project.yaml`.
+2. Replace the **literal** string `ALCHEMY_API_KEY` in each Sepolia/mainnet URL with your actual Alchemy API key (CRE does not expand env vars; use the same key as in `chain-guard/.env.local` or `chain-guard-cre/.env`).
+3. Save. The `local-simulation`, `staging`, and `evm-triggered` targets will use Alchemy so the write step completes in seconds instead of minutes.
+
+### 5. Configure Monitoring
 
 Edit `config.json` to add contracts to monitor:
 
@@ -113,9 +121,7 @@ Edit `config.json` to add contracts to monitor:
 ### Local Simulation
 
 ```bash
-cd /home/bilal/bilal_projects/Hackathons/chainlink/chain-guard-cre && cre workflow simulate ./chainguard-sentinel --target local-simulation
-
-node src/server.js
+cd /path/to/chain-guard-cre && cre workflow simulate ./chainguard-sentinel --target local-simulation
 ```
 
 ### Staging Deployment

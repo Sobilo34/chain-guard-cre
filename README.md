@@ -2,7 +2,11 @@
 
 **The Chainlink CRE workflow that powers ChainGuard’s decentralized risk analysis.**
 
-This repository contains the **Chainlink Runtime Environment (CRE)** workflow used by [ChainGuard Sentinel](https://github.com/Sobilo34/chain-guard). It is triggered by on-chain events from the **ChainGuardCREConsumer** contract, pulls contract and market data, runs AI risk analysis, and writes the report back on-chain—so the frontend never needs a custom backend.
+This repository contains the **Chainlink Runtime Environment (CRE)** workflow used by [ChainGuard Sentinel](https://github.com/Sobilo34/chain-guard). It is triggered by on-chain events from the **ChainGuardCREConsumer** contract, pulls contract and market data, runs AI risk analysis, and writes the report back on-chain — so the risk pipeline runs in the workflow rather than a separate always-on server.
+
+> **Status:** The EVM-triggered path is implemented and demonstrated via CRE CLI simulation against Sepolia (driven by the listener in the [chain-guard](https://github.com/Sobilo34/chain-guard) repo). DON deployment is the production target.
+
+**Live app:** [chain-guard-pa03.onrender.com](https://chain-guard-pa03.onrender.com/) · **Demo video:** [Google Drive](https://drive.google.com/file/d/1QzXykooArCrM57OPvpoO5ILw7Lsbeo3Q/view?usp=drive_link)
 
 ---
 
@@ -160,6 +164,10 @@ Frontend reads getAssessment(requestId)
 
 ---
 
+## Author
+
+Built by **Bilal Oyeleke Soliu** — [github.com/Sobilo34](https://github.com/Sobilo34) · Contact: `<CONTACT_URL>`
+
 ## License
 
-MIT.
+Released under the [MIT License](LICENSE) © 2026 Bilal Oyeleke Soliu.

@@ -11,7 +11,7 @@ dist/
 build/
 *.tsbuildinfo
 
-# Environment and secrets
+# Environment and secrets (never commit API keys)
 .env
 .env.local
 .env.*.local
